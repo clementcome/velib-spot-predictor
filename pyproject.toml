@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "velib-spot-predictor"
+version = "0.1.0"
+description = "Predicting spots at Velib stations"
+authors = ["Clément Côme <clement.come98@gmail.com>"]
+readme = "README.md"
+packages = [{include = "velib_spot_predictor"}]
+
+[tool.poetry.scripts]
+build_model = "velib_spot_predictor.model.save_model:save_model"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "^1.25.2"
+pandas = "^2.1.0"
+scikit-learn = "^1.3.0"
+click = "^8.1.7"
+fastapi = "^0.103.0"
+uvicorn = "^0.23.2"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.11.1"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+pylint = "^2.17.5"
+isort = "^5.12.0"
+
+
+[tool.poetry.group.jupyter.dependencies]
+jupyter = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
