@@ -68,6 +68,14 @@ ensure_newline_before_comments = true
 [tool.ruff]
 line-length = 79
 select = ["B", "E", "F", "I", "N", "PL", "S", "W"]
+exclude = ["tests/**"]
 
 [tool.ruff.pydocstyle]
 convention = "numpy"
+
+[tool.pytest.ini_options]
+addopts = [
+    "-v",
+    "--cov=velib_spot_predictor",
+    "--cov-report=xml",
+]
