@@ -6,8 +6,16 @@ from datetime import datetime
 from pathlib import Path
 
 # Replace 'YOUR_API_URL' with the actual API endpoint
-api_url = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records'
-# data = fetch_data_with_pagination(api_url)
+api_url = 'https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json'
+# data = fetch_data(api_url)
+
+def fetch_data(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()["data"]["stations"]
+        return data
+    else:
+        raise Exception(f"Response status code was: {response.status_code}")
 
 
 def fetch_data_with_pagination(base_url, limit=10):
@@ -55,7 +63,7 @@ def fetch_and_save_raw_data(save_folder: str) -> None:
     formatted_datetime = datetime.now().strftime("%Y%m%d-%H%M%S")
 
     click.echo(f"Fetching data at {datetime.now()}")
-    data = fetch_data_with_pagination(api_url, limit=100)
+    data = fetch_data(api_url)
 
     filename = f"velib_availability_real_time_{formatted_datetime}.json"
     filepath = Path(save_folder) / filename
