@@ -38,3 +38,4 @@ Using docker allows to schedule with crontab without having to wonder about exec
 ```bash
 * * * * * docker run -v /home/clement/projects/velib-spot-predictor/data/raw/automated_fetching_v3:/data velib_base fetch_save_data /data
 ```
+test
