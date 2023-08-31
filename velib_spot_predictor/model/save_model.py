@@ -4,6 +4,7 @@ from joblib import dump
 from velib_spot_predictor.data.load_data import load_raw
 from velib_spot_predictor.model.train_model import train
 
+
 @click.command()
 @click.argument("data-path")
 @click.argument("model-path")

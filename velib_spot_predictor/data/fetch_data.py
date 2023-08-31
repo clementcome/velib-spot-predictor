@@ -1,11 +1,13 @@
-import click
 import json
-import requests
-import pytz
 from datetime import datetime
 from pathlib import Path
 
-api_url = 'https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json'
+import click
+import pytz
+import requests
+
+api_url = "https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json"
+
 
 def fetch_data(url):
     response = requests.get(url)
@@ -31,5 +33,5 @@ def fetch_and_save_raw_data(save_folder: str) -> None:
     click.echo(f"Saving fetched data to file {filepath}")
     with open(filepath, "w") as file:
         json.dump(data, file)
-    
+
     click.echo("Fetching and saving data were successful")
