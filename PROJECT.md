@@ -17,3 +17,25 @@ poetry env use 3.9
 ```
 
 And then I added the desired packages using the command `poetry add --group=group package`.
+
+### Docker
+
+Docker images are saved into docker folder, split into to Dockerfile.base and other images for specific tasks.
+
+#### Fetching data
+
+Build images:
+```bash
+docker build -t velib_base -f docker/Dockerfile.base .
+```
+
+Run image:
+```bash
+docker run -v /home/clement/projects/velib-spot-predictor/data/raw/automated_fetching_v3:/data velib_base fetch_save_data /data
+```
+
+Using docker allows to schedule with crontab without having to wonder about execution environment. The crontab entry is:
+```bash
+* * * * * docker run -v /home/clement/projects/velib-spot-predictor/data/raw/automated_fetching_v3:/data velib_base fetch_save_data /data
+```
+

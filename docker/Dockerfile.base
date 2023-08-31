@@ -1,0 +1,24 @@
+# Use an official Python runtime as the base image
+FROM python:3.9.17
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the poetry.lock and pyproject.toml files
+COPY pyproject.toml poetry.lock /app/
+
+# Install poetry
+RUN pip install poetry==1.4.2
+
+# Do not use virtual environment
+RUN poetry config virtualenvs.create false
+
+# Install project dependencies using poetry
+RUN poetry install --no-root
+
+# Copy the rest of the application code
+COPY velib_spot_predictor /app/velib_spot_predictor
+COPY README.md /app/README.md
+
+# Install only current project
+RUN poetry install --only-root
