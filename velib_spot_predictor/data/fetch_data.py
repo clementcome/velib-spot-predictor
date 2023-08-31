@@ -10,8 +10,8 @@ api_url = "https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/
 
 
 def fetch_data(url):
-    response = requests.get(url)
-    if response.status_code == 200:
+    response = requests.get(url, timeout=30)
+    if response.status_code == requests.codes.OK:
         data = response.json()["data"]["stations"]
         return data
     else:
