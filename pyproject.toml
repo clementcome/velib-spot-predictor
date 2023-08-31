@@ -8,6 +8,7 @@ packages = [{include = "velib_spot_predictor"}]
 
 [tool.poetry.scripts]
 build_model = "velib_spot_predictor.model.save_model:save_model"
+fetch_save_data = "velib_spot_predictor.data.fetch_data:fetch_and_save_raw_data"
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -17,6 +18,8 @@ scikit-learn = "^1.3.0"
 click = "^8.1.7"
 fastapi = "^0.103.0"
 uvicorn = "^0.23.2"
+requests = "^2.31.0"
+tqdm = "^4.66.1"
 
 
 [tool.poetry.group.test.dependencies]
