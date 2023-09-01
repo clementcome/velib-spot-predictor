@@ -32,4 +32,4 @@ class PredictionOutput(BaseModel):
     """
 
     id_station: int
-    probability: confloat(ge=0, le=1)
+    prediction: confloat(ge=0)
