@@ -1,3 +1,4 @@
+"""Loading data submodule."""
 from pathlib import Path
 
 import pandas as pd
@@ -5,6 +6,18 @@ import pytz
 
 
 def load_raw(path: Path) -> pd.DataFrame:
+    """Load raw data from a file.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the file containing the raw data
+
+    Returns
+    -------
+    pd.DataFrame
+        Raw data
+    """
     data = pd.read_csv(path, sep=";")
     data["Actualisation de la donnée"] = pd.to_datetime(
         data["Actualisation de la donnée"], utc=True
