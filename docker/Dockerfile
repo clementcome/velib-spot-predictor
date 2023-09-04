@@ -1,4 +1,4 @@
-FROM velib_base
+FROM clementcome/velib_base
 
 WORKDIR /app
 
