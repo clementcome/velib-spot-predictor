@@ -26,8 +26,11 @@ Docker images are saved into docker folder, split into to Dockerfile.base and ot
 
 Build images:
 ```bash
-docker build -t clementcome/velib_base:v0.1.0 -f docker/Dockerfile.base .
-docker build -t clementcome/velib:v0.1.0 -f docker/Dockerfile .
+docker build -t clementcome/velib_base:v0.1.0 -t clementcome/velib_base:latest  -f docker/Dockerfile.base .
+docker build -t clementcome/velib:v0.1.0 -t clementcome/velib:latest -f docker/Dockerfile .
+docker build -t clementcome/velib-aws:v0.1.0 -t clementcome/velib-aws:latest -f docker/Dockerfile.aws .
+docker tag clementcome/velib-aws:v0.1.0 309622890411.dkr.ecr.eu-west-3.amazonaws.com/clement-velib:v0.1.0
+docker tag clementcome/velib-aws:latest 309622890411.dkr.ecr.eu-west-3.amazonaws.com/clement-velib:latest
 ```
 
 Run image:
@@ -39,6 +42,7 @@ Push image to docker hub:
 ```bash
 docker image push --all-tags clementcome/velib_base
 docker image push --all-tags clementcome/velib
+docker image push --all-tags 309622890411.dkr.ecr.eu-west-3.amazonaws.com/clement-velib
 ```
 
 Using docker allows to schedule with crontab without having to wonder about execution environment. The crontab entry is:
