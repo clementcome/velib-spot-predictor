@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  fetch:
+    image: "clementcome/velib:latest"
+    command: "fetch_data_to_s3"
+    working_dir: "/app"
+    volumes:
+      - "/home/clement/projects/velib-spot-predictor/aws.env:/app/aws.env"
+    pull_policy: "always"
