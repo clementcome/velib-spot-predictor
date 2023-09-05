@@ -49,6 +49,7 @@ def fetch_and_save_raw_data(save_folder: str) -> None:
     save_folder : str
         Path to the folder where the fetched data will be saved
     """
+    save_folder: Path = Path(save_folder)
     tz = pytz.timezone("Europe/Paris")
     datetime_now = datetime.now().astimezone(tz=tz)
     formatted_datetime = datetime_now.strftime("%Y%m%d-%H%M%S")
@@ -57,7 +58,7 @@ def fetch_and_save_raw_data(save_folder: str) -> None:
     data = fetch_data(API_URL)
 
     filename = f"velib_availability_real_time_{formatted_datetime}.json"
-    filepath = Path(save_folder) / filename
+    filepath = save_folder / filename
     click.echo(f"Saving fetched data to file {filepath}")
     with open(filepath, "w") as file:
         json.dump(data, file)
