@@ -1,0 +1,17 @@
+name: release-control
+
+on:
+  pull_request_target:
+    branches: main
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Set up Python 3.9
+      run: ./.github/scripts/release-control.sh
+      
