@@ -1,8 +1,11 @@
 name: release-control
 
 on:
-  pull_request_target:
-    branches: main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize]
+    
 
 jobs:
 
