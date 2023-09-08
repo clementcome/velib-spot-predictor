@@ -1,10 +1,11 @@
 name: release-control
 
 on:
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize]
+  workflow_dispatch
+  # pull_request:
+  #   branches:
+  #     - main
+  #   types: [opened, synchronize]
     
 
 jobs:
