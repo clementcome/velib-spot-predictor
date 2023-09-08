@@ -22,4 +22,9 @@ jobs:
           echo "No version bump keyword (patch, minor, or major) found in the PR title."
           exit 1
         fi
+    - name: Build and Bump Version
+      if: steps.check-pr-title.outputs.bump_version
+      run: |
+        VERSION_BUMP="${{ steps.check-pr-title.outputs.bump_version }}"
+        echo "$VERSION_BUMP"
       
