@@ -3,10 +3,10 @@ name: Development tag
 on:
   workflow_dispatch:
     inputs:
-      release-candidate:
-        description: 'Release candidate version'
+      message:
+        description: 'Message for the tag'
         required: true
-        default: '1'
+        default: 'Release candidate for feature X'
 
 jobs:
   tag:
@@ -28,11 +28,10 @@ jobs:
       - name: Tag
         run: |
           CURRENT_VERSION=$(poetry version -s)
-          RELEASE_CANDIDATE=${{ github.event.inputs.release-candidate }}
           echo "Current version: $CURRENT_VERSION"
-          NEW_VERSION=${CURRENT_VERSION}rc${RELEASE_CANDIDATE}
-          echo "New version: $NEW_VERSION"
+          RELEASE_CANDIDATE=$(poetry version prerelese -s)
+          echo "Release candidate: $RELEASE_CANDIDATE"
           git config --global user.email "your-email@example.com"
           git config --global user.name "Your Name"
-          git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
-          git push -f origin "v$NEW_VERSION"
+          git tag -a "v$RELEASE_CANDIDATE" -m "Release candidate $RELEASE_CANDIDATE - ${{ github.event.inputs.message }}"
+          git push -f origin "v$RELEASE_CANDIDATE"
