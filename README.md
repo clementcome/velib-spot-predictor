@@ -10,3 +10,11 @@ This project aims at developing an end-to-end project using Paris Open Data on v
 ```bash
 uvicorn velib_spot_predictor.api:app --reload
 ```
+
+## Deployment
+
+### Docker
+Image is published in clementcome/velib repository.
+
+### PyPI
+Package is published under velib-spot-predictor package.
