@@ -42,6 +42,8 @@ jobs:
 
       - name: Bump Version and tag
         if: steps.check-pr-title.outputs.bump_version
+        env:
+          ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           VERSION_BUMP="${{ steps.check-pr-title.outputs.bump_version }}"
           poetry version "$VERSION_BUMP"
