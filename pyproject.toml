@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "velib-spot-predictor"
-version = "0.1.4"
+version = "0.1.5"
 description = "Predicting spots at Velib stations"
 authors = ["Clément Côme <clement.come98@gmail.com>"]
 readme = "README.md"
