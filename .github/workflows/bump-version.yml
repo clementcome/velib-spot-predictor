@@ -29,6 +29,8 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v3
@@ -42,8 +44,6 @@ jobs:
 
       - name: Bump Version and tag
         if: steps.check-pr-title.outputs.bump_version
-        env:
-          ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           VERSION_BUMP="${{ steps.check-pr-title.outputs.bump_version }}"
           poetry version "$VERSION_BUMP"
