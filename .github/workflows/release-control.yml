@@ -1,9 +1,9 @@
-name: release-control
+name: Release control
 
 on:
   pull_request:
     branches:
-      - main-test-ci-cd
+      - main*
 
 
 jobs:
@@ -24,8 +24,43 @@ jobs:
           echo "No version bump keyword (patch, minor, or major) found in the PR title."
           exit 1
         fi
-    - name: Build and Bump Version
-      if: steps.check-pr-title.outputs.bump_version
+
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.9.17
+
+    - name: Install poetry
       run: |
-        VERSION_BUMP="${{ steps.check-pr-title.outputs.bump_version }}"
-        echo "$VERSION_BUMP"
+          python -m pip install --upgrade pip
+          python -m pip install poetry==1.4.2
+
+    - name: Get version of base and head branch
+      id: get-version
+      run: |
+        git fetch --prune --unshallow
+        VERSION=$(poetry version -s)
+        echo "Head branch version: $VERSION"
+        echo "head_branch_version=$VERSION" >> $GITHUB_OUTPUT
+        git checkout ${{ github.base_ref }}
+        VERSION=$(poetry version -s)
+        echo "Base branch version: $VERSION"
+        echo "base_branch_version=$VERSION" >> $GITHUB_OUTPUT
+        # git checkout ${{ github.head_ref }}
+    - name: Compare versions
+      id: compare-versions
+      run: |
+        BASE_BRANCH_VERSION="${{ steps.get-version.outputs.base_branch_version }}"
+        HEAD_BRANCH_VERSION="${{ steps.get-version.outputs.head_branch_version }}"
+        echo "Base branch version: $BASE_BRANCH_VERSION"
+        echo "Head branch version: $HEAD_BRANCH_VERSION"
+        if [[ "$BASE_BRANCH_VERSION" == "$HEAD_BRANCH_VERSION" ]]; then
+          echo "Base branch version and head branch version are the same."
+          echo "version_changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "Base branch version and head branch version are different."
+          exit 1
+        fi
