@@ -30,7 +30,7 @@ jobs:
           CURRENT_VERSION=$(poetry version -s)
           RELEASE_CANDIDATE=${{ github.event.inputs.release-candidate }}
           echo "Current version: $CURRENT_VERSION"
-          NEW_VERSION=$CURRENT_VERSIONrc$RELEASE_CANDIDATE
+          NEW_VERSION=${CURRENT_VERSION}rc${RELEASE_CANDIDATE}
           echo "New version: $NEW_VERSION"
           git config --global user.email "your-email@example.com"
           git config --global user.name "Your Name"
