@@ -51,3 +51,13 @@ Using docker allows to schedule with crontab without having to wonder about exec
 ```
 
 ## CI/CD pipeline
+
+CI/CD pipeline:
+- Validation
+  - Linting
+  - Testing
+- Release control
+- Version bumping
+- Publishing
+  - Docker image
+  - Python package
