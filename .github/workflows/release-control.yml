@@ -16,7 +16,9 @@ jobs:
       id: check-pr-title
       run: |
         PR_TITLE=$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")
+        echo "PR Title: $PR_TITLE"
         if [[ $PR_TITLE =~ (patch|minor|major) ]]; then
+          echo "Version bump keyword found: ${BASH_REMATCH[0]}"
           echo "bump_version=${BASH_REMATCH[0]}" >> $GITHUB_OUTPUT
         else
           echo "No version bump keyword (patch, minor, or major) found in the PR title."
