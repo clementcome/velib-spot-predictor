@@ -1,11 +1,9 @@
 name: release-control
 
 on:
-  workflow_dispatch
-  # pull_request:
-  #   branches:
-  #     - main
-  #   types: [opened, synchronize]
+  pull_request:
+    branches:
+      - main-test-ci-cd
     
 
 jobs:
@@ -14,10 +12,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Grant executable permission to script
-      run: chmod +x ./.github/scripts/release-control.sh
-    - name: Set up Python 3.9
-      run: ./.github/scripts/release-control.sh
+    - name: Check PR Title and Determine Version Bump
+      id: check-pr-title
+      run: |
+        PR_TITLE=$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")
+        if [[ $PR_TITLE =~ (patch|minor|major) ]]; then
+          echo "::set-output name=bump_version::${BASH_REMATCH[0]}"
+        else
+          echo "No version bump keyword (patch, minor, or major) found in the PR title."
+          exit 1
+        fi
       
