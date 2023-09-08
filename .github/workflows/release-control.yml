@@ -4,11 +4,11 @@ on:
   pull_request:
     branches:
       - main-test-ci-cd
-    
+
 
 jobs:
 
-  test:
+  release-control:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,7 +17,7 @@ jobs:
       run: |
         PR_TITLE=$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")
         if [[ $PR_TITLE =~ (patch|minor|major) ]]; then
-          echo "::set-output name=bump_version::${BASH_REMATCH[0]}"
+          echo "bump_version=${BASH_REMATCH[0]}" >> $GITHUB_OUTPUT
         else
           echo "No version bump keyword (patch, minor, or major) found in the PR title."
           exit 1
@@ -27,4 +27,3 @@ jobs:
       run: |
         VERSION_BUMP="${{ steps.check-pr-title.outputs.bump_version }}"
         echo "$VERSION_BUMP"
-      
