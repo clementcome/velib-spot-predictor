@@ -2,6 +2,7 @@ name: Release control
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited, closed]
     branches:
       - main*
 
@@ -10,6 +11,10 @@ jobs:
 
   release-control:
     runs-on: ubuntu-latest
+    outputs:
+      bump_version: ${{ steps.check-pr-title.outputs.bump_version }}
+      base_branch_version: ${{ steps.get-version.outputs.base_branch_version }}
+      head_branch_version: ${{ steps.get-version.outputs.head_branch_version }}
 
     steps:
     - name: Check PR Title and Determine Version Bump
@@ -59,7 +64,6 @@ jobs:
         echo "Head branch version: $HEAD_BRANCH_VERSION"
         if [[ "$BASE_BRANCH_VERSION" == "$HEAD_BRANCH_VERSION" ]]; then
           echo "Base branch version and head branch version are the same."
-          echo "version_changed=false" >> $GITHUB_OUTPUT
         else
           echo "Base branch version and head branch version are different."
           exit 1
