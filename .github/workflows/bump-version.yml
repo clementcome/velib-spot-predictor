@@ -49,6 +49,6 @@ jobs:
           git config --global user.email "your-email@example.com"
           git config --global user.name "Your Name"
           git commit -m "Bump version to $RELEASE_VERSION" pyproject.toml
-          git push origin HEAD:${{ github.base_ref }}
+          git push -f origin HEAD:${{ github.base_ref }}
           git tag -a "v$VERSION_BUMP" -m "Version $VERSION_BUMP"
-          git push origin "v$VERSION_BUMP"
+          git push -f origin "v$VERSION_BUMP"
