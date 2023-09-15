@@ -1,12 +1,12 @@
 """Loading data submodule."""
+import json
 from pathlib import Path
 
 import pandas as pd
-import pytz
 
 
-def load_raw(path: Path) -> pd.DataFrame:
-    """Load raw data from a file.
+def load_prepared(path: Path) -> pd.DataFrame:
+    """Load prepared data from a file.
 
     Parameters
     ----------
@@ -18,16 +18,28 @@ def load_raw(path: Path) -> pd.DataFrame:
     pd.DataFrame
         Raw data
     """
-    data = pd.read_csv(path, sep=";")
-    data["Actualisation de la donnée"] = pd.to_datetime(
-        data["Actualisation de la donnée"], utc=True
-    )
-    tz = pytz.timezone("Europe/Paris")
-    data["Actualisation de la donnée"] = data[
-        "Actualisation de la donnée"
-    ].dt.tz_convert(tz)
-    data["Heure"] = (
-        data["Actualisation de la donnée"].dt.hour
-        + data["Actualisation de la donnée"].dt.minute / 60
-    )
+    data = pd.read_pickle(path)
+    data = data.sort_values(by=["datetime", "station_id"])
     return data
+
+
+def load_station_information(path: Path) -> pd.DataFrame:
+    """Load station information from a file.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the file containing the station information
+
+    Returns
+    -------
+    pd.DataFrame
+        Station information
+    """
+    with open(path, "r") as f:
+        station_information_raw = json.load(f)
+    station_information = pd.DataFrame.from_records(
+        station_information_raw["data"]["stations"]
+    )
+
+    return station_information
