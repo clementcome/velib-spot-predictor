@@ -11,3 +11,9 @@ class S3AWSConfig(BaseSettings):
     VELIB_RAW_BUCKET: str = "clement-velib-raw-automation"
 
     model_config = SettingsConfigDict(env_file="aws.env", env_prefix="S3_")
+
+
+class Config(BaseSettings):
+    """Configuration for the project."""
+
+    DATA_FOLDER: str = "data"
