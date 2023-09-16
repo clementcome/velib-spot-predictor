@@ -2,7 +2,7 @@
 import click
 from joblib import dump
 
-from velib_spot_predictor.data.load_data import load_raw
+from velib_spot_predictor.data.load_data import load_prepared
 from velib_spot_predictor.model.train_model import train
 
 
@@ -19,6 +19,6 @@ def save_model(data_path: str, model_path: str) -> None:
     model_path : str
         Path to the joblib file where the model will be saved
     """
-    data = load_raw(data_path)
+    data = load_prepared(data_path)
     model = train(data)
     dump(model, model_path)
