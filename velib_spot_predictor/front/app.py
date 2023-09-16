@@ -106,9 +106,6 @@ config = Config()
 arrondissements = gpd.read_file(
     f"{config.DATA_FOLDER}/external/arrondissements.geojson"
 )
-quartier_paris = gpd.read_file(
-    f"{config.DATA_FOLDER}/external/quartier_paris.geojson"
-)
 occupation_df = load_prepared(
     f"{config.DATA_FOLDER}/interim/data_20230907.pkl"
 )
@@ -222,8 +219,11 @@ style_handle = assign(
 )
 
 app = dash.Dash(
-    external_scripts=[chroma], external_stylesheets=[dbc.themes.BOOTSTRAP]
+    __name__,
+    external_scripts=[chroma],
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
 )
+server = app.server
 
 arrondissements_layer = dl.GeoJSON(
     data=None,
@@ -272,8 +272,6 @@ app.layout = html.Div(
             [
                 dl.TileLayer(),
                 arrondissements_layer,
-                # quartier_paris_layer,
-                # station_information_layer,
                 occupation_layer,
                 colorbar,
             ],

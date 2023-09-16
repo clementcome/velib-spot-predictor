@@ -1,0 +1,21 @@
+FROM clementcome/velib_base
+
+WORKDIR /app
+
+# Copy the rest of the application code
+COPY velib_spot_predictor /app/velib_spot_predictor
+COPY README.md /app/README.md
+
+COPY velib_spot_predictor/front/app.py /app/app.py
+COPY data/external/arrondissements.geojson /app/data/external/arrondissements.geojson
+COPY data/interim/data_20230907.pkl /app/data/interim/data_20230907.pkl
+COPY data/raw/station_information.json /app/data/raw/station_information.json
+COPY pyproject.toml poetry.lock /app/
+
+# Install only current project
+RUN poetry install --only-root
+
+# Install front dependencies
+RUN poetry install --with=front
+
+CMD gunicorn app:server --bind :8000
