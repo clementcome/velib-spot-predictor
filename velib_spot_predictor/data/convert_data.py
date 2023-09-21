@@ -10,51 +10,54 @@ import pandas as pd
 from pydantic import BaseModel, DirectoryPath, FilePath, NewPath
 from tqdm import tqdm
 
+from velib_spot_predictor.data.base import (
+    IETL,
+    IExtractor,
+    ILoader,
+    ITransformer,
+)
 from velib_spot_predictor.data.load_data import load_station_information
 from velib_spot_predictor.utils import get_one_filepath
 
 logger = logging.getLogger(__name__)
 
 
-class DataConversionETL(BaseModel):
-    """ETL to convert raw data into a clean database."""
+class DataConversionExtractor(BaseModel, IExtractor):
+    """Extract the data from the raw data folder.
+
+    Parameters
+    ----------
+    folder_raw_data : DirectoryPath
+        Folder containing the raw data
+    pattern_raw_data : str, optional
+        Pattern to match the raw data files, by default "*.json"
+    pbar : bool, optional
+        Whether to display a progress bar, by default False
+    """
 
     folder_raw_data: DirectoryPath
     pattern_raw_data: str = "*.json"
-    station_information_path: FilePath
-    output_file: Union[FilePath, NewPath]
+    pbar: bool = False
 
-    @cached_property
-    def station_information(self) -> pd.DataFrame:
-        """Load the station information."""
-        station_information = load_station_information(
-            self.station_information_path
-        )
-        return station_information
-
-    def extract_one_file(self, filepath: Path) -> pd.DataFrame:
-        """Extract the data from one file.
+    def _find_filepath(self, date: datetime) -> str:
+        """Find the filename corresponding to the date.
 
         Parameters
         ----------
-        filepath : Path
-            Path to the file to extract
+        date : datetime
+            Date to find the filename for
 
 
         Returns
         -------
-        pd.DataFrame
-            Extracted data
+        str
+            Filename corresponding to the date
         """
-        data = pd.read_json(filepath)
-        column_to_flatten = ["num_bikes_available_types"]
-        for column in column_to_flatten:
-            flattened_column = self.flatten_column(data[column])
-            data = pd.concat([data, flattened_column], axis=1)
-        data = data.drop(columns=column_to_flatten)
-        return data
+        file_pattern = f"velib_availability_real_time_{date:%Y%m%d-%H%M}*.json"
+        filepath = get_one_filepath(self.folder_raw_data, file_pattern)
+        return filepath
 
-    def flatten_column(self, column: pd.Series) -> pd.DataFrame:
+    def _flatten_column(self, column: pd.Series) -> pd.DataFrame:
         """Flatten the column of a dataframe.
 
         Parameters
@@ -77,25 +80,29 @@ class DataConversionETL(BaseModel):
 
         return flattened_column
 
-    def find_filepath(self, date: datetime) -> str:
-        """Find the filename corresponding to the date.
+    def _extract_one_file(self, filepath: Path) -> pd.DataFrame:
+        """Extract the data from one file.
 
         Parameters
         ----------
-        date : datetime
-            Date to find the filename for
+        filepath : Path
+            Path to the file to extract
 
 
         Returns
         -------
-        str
-            Filename corresponding to the date
+        pd.DataFrame
+            Extracted data
         """
-        file_pattern = f"velib_availability_real_time_{date:%Y%m%d-%H%M}*.json"
-        filepath = get_one_filepath(self.folder_raw_data, file_pattern)
-        return filepath
+        data = pd.read_json(filepath)
+        column_to_flatten = ["num_bikes_available_types"]
+        for column in column_to_flatten:
+            flattened_column = self._flatten_column(data[column])
+            data = pd.concat([data, flattened_column], axis=1)
+        data = data.drop(columns=column_to_flatten)
+        return data
 
-    def extract(self, pbar: bool = False) -> pd.DataFrame:
+    def extract(self) -> pd.DataFrame:
         """Extract all the data contained in the folder.
 
         Parameters
@@ -112,16 +119,44 @@ class DataConversionETL(BaseModel):
         data_dict = {}
         for filepath in tqdm(
             list(self.folder_raw_data.glob(self.pattern_raw_data)),
-            disable=not pbar,
+            disable=not self.pbar,
         ):
             try:
-                data_dict[filepath.name] = self.extract_one_file(filepath)
+                data_dict[filepath.name] = self._extract_one_file(filepath)
             except Exception as e:
                 print(f"Error while extracting file {filepath}: {e}")
         data = pd.concat(data_dict, axis=0).reset_index(
             names=["filename", "index"]
         )
         return data
+
+
+class DataConversionTransformer(BaseModel, ITransformer):
+    """Transform the data.
+
+    Get the date from the filename.
+
+    Parameters
+    ----------
+    station_information_path : FilePath
+        Path to the file containing the station information
+
+
+    Attributes
+    ----------
+    station_information : pd.DataFrame
+        Station information
+    """
+
+    station_information_path: FilePath
+
+    @cached_property
+    def station_information(self) -> pd.DataFrame:
+        """Load the station information."""
+        station_information = load_station_information(
+            self.station_information_path
+        )
+        return station_information
 
     def transform(self, data: pd.DataFrame) -> pd.DataFrame:
         """Transform the data.
@@ -154,8 +189,20 @@ class DataConversionETL(BaseModel):
         )
         return data
 
+
+class DataConversionFileLoader(BaseModel, ILoader):
+    """Load the data into a file.
+
+    Parameters
+    ----------
+    output_file : Union[FilePath, NewPath]
+        Path to the file to save the data
+    """
+
+    output_file: Union[FilePath, NewPath]
+
     def load(self, data: pd.DataFrame) -> None:
-        """Load the data into a database.
+        """Load the data into a file.
 
         Parameters
         ----------
@@ -163,6 +210,37 @@ class DataConversionETL(BaseModel):
             Data to load
         """
         data.to_pickle(self.output_file)
+
+
+class DataConversionETL(BaseModel, IETL):
+    """ETL to convert raw data into a clean database."""
+
+    folder_raw_data: DirectoryPath
+    pattern_raw_data: str = "*.json"
+    station_information_path: FilePath
+    output_file: Union[FilePath, NewPath]
+    pbar: bool = False
+
+    @property
+    def extractor(self) -> DataConversionExtractor:
+        """Extractor."""
+        return DataConversionExtractor(
+            folder_raw_data=self.folder_raw_data,
+            pattern_raw_data=self.pattern_raw_data,
+            pbar=self.pbar,
+        )
+
+    @property
+    def transformer(self) -> DataConversionTransformer:
+        """Transformer."""
+        return DataConversionTransformer(
+            station_information_path=self.station_information_path
+        )
+
+    @property
+    def loader(self) -> DataConversionFileLoader:
+        """Loader."""
+        return DataConversionFileLoader(output_file=self.output_file)
 
 
 @click.command()
