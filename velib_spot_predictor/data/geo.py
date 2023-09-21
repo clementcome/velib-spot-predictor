@@ -34,29 +34,29 @@ class ICatchmentAreaBuilder(abc.ABC):
         gpd.GeoSeries
             The catchment area of the points.
         """
-        self.log_start()
-        self.check_input(df)
-        points_array = self.build_points_array(df)
-        voronoi_series = self.build_voronoi(points_array, df.index)
-        self.log_end(voronoi_series)
+        self._log_start()
+        self._check_input(df)
+        points_array = self._build_points_array(df)
+        voronoi_series = self._build_voronoi(points_array, df.index)
+        self._log_end(voronoi_series)
         return voronoi_series
 
     @abc.abstractmethod
-    def log_start(self) -> None:
+    def _log_start(self) -> None:
         """Log the start of the catchment area building."""
 
     @abc.abstractmethod
-    def check_input(self, df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> None:
+    def _check_input(self, df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> None:
         """Check the input dataframe."""
 
     @abc.abstractmethod
-    def build_points_array(
+    def _build_points_array(
         self, df: Union[pd.DataFrame, gpd.GeoDataFrame]
     ) -> np.ndarray:
         """Build the array of points."""
 
     @staticmethod
-    def build_voronoi(
+    def _build_voronoi(
         points_array: np.ndarray, index: pd.Index
     ) -> gpd.GeoSeries:
         """Build the Voronoi diagram.
@@ -91,7 +91,7 @@ class ICatchmentAreaBuilder(abc.ABC):
         return voronoi_series
 
     @staticmethod
-    def log_end(voronoi_series: gpd.GeoSeries) -> None:
+    def _log_end(voronoi_series: gpd.GeoSeries) -> None:
         """Log the end of the catchment area building.
 
         Parameters
@@ -114,11 +114,11 @@ class ICatchmentAreaBuilder(abc.ABC):
 class CatchmentAreaBuilderGeometry(ICatchmentAreaBuilder):
     """Build the catchment area of a set of points from a geometry column."""
 
-    def log_start(self) -> None:
+    def _log_start(self) -> None:
         """Log the start of the catchment area building."""
         logger.info("Building catchment area from geometry.")
 
-    def check_input(self, df: gpd.GeoDataFrame) -> None:
+    def _check_input(self, df: gpd.GeoDataFrame) -> None:
         """Check the input dataframe.
 
         Parameters
@@ -138,7 +138,7 @@ class CatchmentAreaBuilderGeometry(ICatchmentAreaBuilder):
                 "The input GeoDataFrame must contain only points."
             )
 
-    def build_points_array(self, df: gpd.GeoDataFrame) -> np.ndarray:
+    def _build_points_array(self, df: gpd.GeoDataFrame) -> np.ndarray:
         """Build the array of points.
 
         Parameters
@@ -162,14 +162,14 @@ class CatchmentAreaBuilderColumns(ICatchmentAreaBuilder):
     longitude: str = "longitude"
     latitude: str = "latitude"
 
-    def log_start(self) -> None:
+    def _log_start(self) -> None:
         """Log the start of the catchment area building."""
         logger.info(
             f"Building catchment area from {self.longitude=} and "
             f"{self.latitude=} columns."
         )
 
-    def check_input(self, df: gpd.GeoDataFrame) -> None:
+    def _check_input(self, df: gpd.GeoDataFrame) -> None:
         """Check the input dataframe.
 
         Parameters
@@ -195,7 +195,7 @@ class CatchmentAreaBuilderColumns(ICatchmentAreaBuilder):
                 f"The input dataframe must contain a {self.latitude=} column."
             )
 
-    def build_points_array(self, df: gpd.GeoDataFrame) -> np.ndarray:
+    def _build_points_array(self, df: gpd.GeoDataFrame) -> np.ndarray:
         """Build the array of points.
 
         Parameters
