@@ -8,7 +8,7 @@ from velib_spot_predictor.data.convert_data import (
     DataConversionETL,
     DataConversionExtractor,
     DataConversionFileLoader,
-    DataConversionTransformer,
+    DataConversionLocalTransformer,
 )
 
 

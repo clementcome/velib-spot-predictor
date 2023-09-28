@@ -26,6 +26,9 @@ pydantic-settings = "^2.0.3"
 loguru = "^0.7.2"
 geopandas = "^0.13.2"
 scipy = "^1.11.2"
+sqlalchemy = "^2.0.21"
+mysql-connector-python = "^8.1.0"
+alembic = "^1.12.0"
 
 
 [tool.poetry.group.front]
@@ -92,7 +95,12 @@ ensure_newline_before_comments = true
 line-length = 79
 select = ["B", "D", "E", "F", "I", "N", "PL", "S", "W"]
 ignore = ["S301"]
-exclude = ["tests/**", "notebooks/**", "scripts"]
+exclude = [
+    "tests/**",
+    "notebooks/**",
+    "scripts",
+    "velib_spot_predictor/data/database/alembic",
+]
 
 [tool.ruff.lint]
 select = ["B", "D", "E", "F", "I", "N", "PL", "S", "W"]
