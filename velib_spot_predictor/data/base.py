@@ -28,6 +28,14 @@ class ILoader(abc.ABC):
         """Load the data."""
 
 
+class DummyTransformer(ITransformer):
+    """Dummy transformer, does nothing."""
+
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Transform the data."""
+        return df
+
+
 class IETL:
     """ETL interface, runs the ETL process."""
 

@@ -197,3 +197,5 @@ pyrightconfig.json
 /data
 models
 *.env
+# Test scripts
+test_*
