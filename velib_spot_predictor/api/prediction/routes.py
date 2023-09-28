@@ -1,14 +1,17 @@
 """Definition of backend routes."""
-from typing import Annotated, Dict
+from typing import Annotated
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from sklearn.base import RegressorMixin
 
-from velib_spot_predictor.api.model import PredictionInput, PredictionOutput
+from velib_spot_predictor.api.prediction.models import (
+    PredictionInput,
+    PredictionOutput,
+)
 from velib_spot_predictor.model.predict_model import load_model
 
-router = APIRouter()
+router = APIRouter(prefix="/predict")
 
 
 class ModelManager:
@@ -31,19 +34,7 @@ class ModelManager:
 model_manager = ModelManager()
 
 
-@router.get("/")
-async def root() -> Dict[str, str]:
-    """Root route of the backend, returns a welcome message.
-
-    Returns
-    -------
-    Dict[str, str]
-        "message": Welcome message
-    """
-    return {"message": "Welcome to the velib spot predictor API"}
-
-
-@router.post("/predict")
+@router.post("/")
 async def predict(
     prediction_input: PredictionInput,
     model: Annotated[RegressorMixin, Depends(model_manager.get_model)],
