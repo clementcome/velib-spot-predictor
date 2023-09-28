@@ -1,4 +1,5 @@
 """Module to transform raw data into a clean database."""
+import abc
 import logging
 from datetime import datetime
 from functools import cached_property
@@ -8,6 +9,7 @@ from typing import Union
 import click
 import pandas as pd
 from pydantic import BaseModel, DirectoryPath, FilePath, NewPath
+from sqlalchemy import func, select
 from tqdm import tqdm
 
 from velib_spot_predictor.data.base import (
@@ -16,6 +18,8 @@ from velib_spot_predictor.data.base import (
     ILoader,
     ITransformer,
 )
+from velib_spot_predictor.data.database.context import DatabaseSession
+from velib_spot_predictor.data.database.models import Station, Status
 from velib_spot_predictor.data.load_data import load_station_information
 from velib_spot_predictor.utils import get_one_filepath
 
@@ -125,13 +129,15 @@ class DataConversionExtractor(BaseModel, IExtractor):
                 data_dict[filepath.name] = self._extract_one_file(filepath)
             except Exception as e:
                 print(f"Error while extracting file {filepath}: {e}")
+        if len(data_dict) == 0:
+            raise ValueError("No data extracted")
         data = pd.concat(data_dict, axis=0).reset_index(
             names=["filename", "index"]
         )
         return data
 
 
-class DataConversionTransformer(BaseModel, ITransformer):
+class DataConversionLocalTransformer(BaseModel, ITransformer):
     """Transform the data.
 
     Get the date from the filename.
@@ -212,17 +218,91 @@ class DataConversionFileLoader(BaseModel, ILoader):
         data.to_pickle(self.output_file)
 
 
+class DataConversionSQLTransformer(BaseModel, ITransformer):
+    """Transform the data.
+
+    Get the date from the filename.
+    """
+
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Transform the data.
+
+        Get the date from the filename.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Data to transform
+
+        Returns
+        -------
+        pd.DataFrame
+            Transformed data
+        """
+        data["datetime"] = pd.to_datetime(
+            data["filename"].str.extract(r"(\d{8}-\d{6})")[0],
+            format="%Y%m%d-%H%M%S",
+            errors="coerce",
+        )
+        data = data.drop(columns=["filename", "index"])
+        stmt = select(Station.station_id)
+        with DatabaseSession() as session:
+            station_id_list = session.scalars(stmt).all()
+        data = data[data["station_id"].isin(station_id_list)]
+        return data
+
+
+class DataConversionSQLLoader(BaseModel, ILoader):
+    """Load the data into a SQL database.
+
+    Parameters
+    ----------
+    table_name : str
+        Name of the table to load the data into
+    """
+
+    table_name: str
+
+    def load(self, data: pd.DataFrame) -> None:
+        """Load the data into a SQL database.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Data to load
+        """
+        db_session = DatabaseSession()
+        with db_session:
+            data[
+                [
+                    "station_id",
+                    "datetime",
+                    "num_bikes_available",
+                    "num_bikes_available_types_mechanical",
+                    "num_bikes_available_types_ebike",
+                    "num_docks_available",
+                    "is_installed",
+                    "is_returning",
+                    "is_renting",
+                ]
+            ].to_sql(
+                self.table_name,
+                db_session.engine,
+                if_exists="append",
+                index=False,
+                chunksize=200_000,
+            )
+
+
 class DataConversionETL(BaseModel, IETL):
     """ETL to convert raw data into a clean database."""
 
     folder_raw_data: DirectoryPath
     pattern_raw_data: str = "*.json"
-    station_information_path: FilePath
-    output_file: Union[FilePath, NewPath]
     pbar: bool = False
 
     @property
-    def extractor(self) -> DataConversionExtractor:
+    def extractor(self) -> IExtractor:
         """Extractor."""
         return DataConversionExtractor(
             folder_raw_data=self.folder_raw_data,
@@ -231,9 +311,26 @@ class DataConversionETL(BaseModel, IETL):
         )
 
     @property
-    def transformer(self) -> DataConversionTransformer:
+    @abc.abstractmethod
+    def transformer(self) -> DataConversionLocalTransformer:
         """Transformer."""
-        return DataConversionTransformer(
+
+    @property
+    @abc.abstractmethod
+    def loader(self) -> ILoader:
+        """Loader."""
+
+
+class DataConversionLocalETL(DataConversionETL):
+    """ETL to convert clean raw data and save as local file."""
+
+    station_information_path: FilePath
+    output_file: Union[FilePath, NewPath]
+
+    @property
+    def transformer(self) -> DataConversionLocalTransformer:
+        """Transformer."""
+        return DataConversionLocalTransformer(
             station_information_path=self.station_information_path
         )
 
@@ -241,6 +338,79 @@ class DataConversionETL(BaseModel, IETL):
     def loader(self) -> DataConversionFileLoader:
         """Loader."""
         return DataConversionFileLoader(output_file=self.output_file)
+
+
+class DataConversionSQLETL(DataConversionETL):
+    """ETL to convert clean raw data and push to a database."""
+
+    @property
+    def transformer(self) -> DataConversionSQLTransformer:
+        """Transformer."""
+        return DataConversionSQLTransformer()
+
+    @property
+    def loader(self) -> DataConversionSQLLoader:
+        """Loader."""
+        return DataConversionSQLLoader(table_name="station_status")
+
+
+@click.command()
+@click.argument("folder_raw_data", type=click.Path(exists=True))
+def load_to_sql(folder_raw_data):
+    """Load the data into a SQL database.
+
+    Parameters
+    ----------
+    folder_raw_data : str
+        Folder containing the raw data
+    """
+    # Convert the input arguments to Path objects
+    folder_raw_data = Path(folder_raw_data)
+    # Detect the different dates available in the folder
+    file_df = pd.DataFrame(
+        [
+            {
+                "filename": filepath.name,
+                "datetime": datetime.strptime(
+                    filepath.name.split("_")[-1].split(".")[0],
+                    "%Y%m%d-%H%M%S",
+                ),
+            }
+            for filepath in folder_raw_data.glob(
+                "velib_availability_real_time*.json"
+            )
+        ]
+    )
+
+    def get_last_datetime_in_table():
+        stmt = select(func.max(Status.status_datetime))
+        with DatabaseSession() as session:
+            last_datetime_in_table = session.scalar(stmt)
+        if last_datetime_in_table is None:
+            last_datetime_in_table = datetime(2020, 1, 1)
+        return last_datetime_in_table
+
+    last_datetime_in_table = get_last_datetime_in_table()
+
+    files_to_convert = (
+        file_df[file_df["datetime"] > last_datetime_in_table]["filename"]
+        .sort_values()
+        .to_list()
+    )
+
+    # Show the user the dates already converted in output_folder
+    click.echo(f"Dates already converted until {last_datetime_in_table}.")
+
+    for filename in tqdm(files_to_convert):
+        data_conversion_etl = DataConversionSQLETL(
+            folder_raw_data=folder_raw_data,
+            pattern_raw_data=filename,
+            pbar=False,
+        )
+        try:
+            data_conversion_etl.run()
+        except ValueError as e:
+            print(f"Error while converting file {filename}: {e}")
 
 
 @click.command()
@@ -295,31 +465,15 @@ def conversion_interface(
         if click.confirm(f"Convert {date} ?"):
             dates_to_convert.append(date)
     for date in dates_to_convert:
-        data_conversion_etl = DataConversionETL(
+        data_conversion_etl = DataConversionLocalETL(
             folder_raw_data=folder_raw_data,
             pattern_raw_data=f"*{date:%Y%m%d}*.json",
             station_information_path=station_information_path,
             output_file=output_folder / f"data_{date:%Y%m%d}.pkl",
+            pbar=True,
         )
-        data = data_conversion_etl.extract(pbar=True)
-        data = data_conversion_etl.transform(data)
-        data_conversion_etl.load(data)
+        data_conversion_etl.run()
 
 
 if __name__ == "__main__":
-    conversion_interface()
-
-# if __name__ == "__main__":
-#     for day in ["20230905", "20230831", "20230901", "20230902", "20230903"]:
-#         data_conversion_etl = DataConversionETL(
-#             folder_raw_data="data/raw/automated_fetching",
-#             pattern_raw_data=f"*{day}*.json",
-#             station_information_path="data/raw/station_information.json",
-#             output_file=f"data/interim/data_{day}.pkl",
-#         )
-#         data = data_conversion_etl.extract(pbar=True)
-#         data = data_conversion_etl.transform(data)
-#         data_conversion_etl.load(data)
-#     print(data.head())
-#     print(data.columns)
-#     print("Done!")
+    load_to_sql()

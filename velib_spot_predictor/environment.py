@@ -8,6 +8,23 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class DBConfig(BaseSettings):
+    """Configuration for the database."""
+
+    HOST: str
+    PORT: int = 3306
+    USER: str
+    PASSWORD: str
+    NAME: str
+
+    model_config = SettingsConfigDict(env_file="db.env", env_prefix="DB_")
+
+    @property
+    def db_url(self) -> str:
+        """Return the database URL."""
+        return f"mysql+mysqlconnector://{self.USER}:{self.PASSWORD}@{self.HOST}/{self.NAME}"
+
+
 class AWSConfig(BaseSettings):
     """Configuration for AWS.
 
