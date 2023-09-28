@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 from sklearn.base import RegressorMixin
 
-import velib_spot_predictor.api.routes as routes
+import velib_spot_predictor.api.prediction.routes as routes
 from velib_spot_predictor.api import app
 
 
