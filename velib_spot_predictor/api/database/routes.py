@@ -11,10 +11,14 @@ from velib_spot_predictor.api.database.models import (
     StatusDatetimeOutput,
     StatusStationInput,
     StatusStationOutput,
+    TestGeometryOutput,
 )
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Station as StationTable
 from velib_spot_predictor.data.database.models import Status as StatusTable
+from velib_spot_predictor.data.database.models import (
+    TestGeometry as TestGeometryTable,
+)
 
 router = APIRouter(prefix="/data")
 
@@ -81,3 +85,13 @@ def get_datetime_status(
         values=[value_ for _, value_ in datetime_status],
     )
     return output
+
+
+@router.get("/geo_test")
+def get_geo_test() -> List[TestGeometryOutput]:
+    """Get the test geometry."""
+    with DatabaseSession() as session:
+        geo_test = session.execute(
+            select(TestGeometryTable.id, TestGeometryTable.geom)
+        ).all()
+    return geo_test

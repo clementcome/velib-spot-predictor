@@ -2,8 +2,11 @@
 import json
 from pathlib import Path
 
+import geopandas as gpd
 import pandas as pd
 import sqlalchemy
+
+from velib_spot_predictor.data.geo import CatchmentAreaBuilderColumns
 
 
 def load_prepared(path: Path) -> pd.DataFrame:
@@ -42,6 +45,17 @@ def load_station_information(path: Path) -> pd.DataFrame:
     station_information = pd.DataFrame.from_records(
         station_information_raw["data"]["stations"]
     )
+    station_catchment_area = (
+        CatchmentAreaBuilderColumns(
+            longitude="lon",
+            latitude="lat",
+        )
+        .run(station_information)
+        .set_crs("EPSG:4326")
+    )
+    station_information = gpd.GeoDataFrame(
+        station_information, geometry=station_catchment_area, crs="EPSG:4326"
+    )
 
     return station_information
 
@@ -76,7 +90,7 @@ def save_station_information_to_sql(
     ...     )
     """
     station_information[
-        ["station_id", "name", "lat", "lon", "capacity"]
+        ["station_id", "name", "lat", "lon", "capacity", "geometry"]
     ].to_sql(
         "station_information",
         engine,

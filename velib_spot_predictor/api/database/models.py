@@ -1,10 +1,19 @@
 """Database models for the API."""
 from datetime import datetime
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
+from geoalchemy2.shape import to_shape
 from pydantic import BaseModel, ConfigDict
+from pydantic.functional_serializers import PlainSerializer
+from pydantic.functional_validators import BeforeValidator
+from shapely.geometry import mapping
+from shapely.geometry.base import BaseGeometry
 
 from velib_spot_predictor.data.constants import ValueColumns
+
+GeometryType = Annotated[
+    BaseGeometry, BeforeValidator(to_shape), PlainSerializer(mapping)
+]
 
 
 class Station(BaseModel):
@@ -59,3 +68,14 @@ class StatusDatetimeOutput(BaseModel):
     values: List[float]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TestGeometryOutput(BaseModel):
+    """TestGeometry Model."""
+
+    id: int
+    geom: GeometryType
+
+    model_config = ConfigDict(
+        from_attributes=True, arbitrary_types_allowed=True
+    )
