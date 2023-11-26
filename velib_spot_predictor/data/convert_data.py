@@ -9,7 +9,7 @@ from typing import Union
 import click
 import pandas as pd
 from pydantic import BaseModel, DirectoryPath, FilePath, NewPath
-from sqlalchemy import func, select
+from sqlalchemy import select
 from tqdm import tqdm
 
 from velib_spot_predictor.data.base import (
@@ -19,7 +19,7 @@ from velib_spot_predictor.data.base import (
     ITransformer,
 )
 from velib_spot_predictor.data.database.context import DatabaseSession
-from velib_spot_predictor.data.database.models import Station, Status
+from velib_spot_predictor.data.database.models import Station
 from velib_spot_predictor.data.load_data import load_station_information
 from velib_spot_predictor.utils import get_one_filepath
 
@@ -356,65 +356,6 @@ class DataConversionSQLETL(DataConversionETL):
 
 @click.command()
 @click.argument("folder_raw_data", type=click.Path(exists=True))
-def load_to_sql(folder_raw_data):
-    """Load the data into a SQL database.
-
-    Parameters
-    ----------
-    folder_raw_data : str
-        Folder containing the raw data
-    """
-    # Convert the input arguments to Path objects
-    folder_raw_data = Path(folder_raw_data)
-    # Detect the different dates available in the folder
-    file_df = pd.DataFrame(
-        [
-            {
-                "filename": filepath.name,
-                "datetime": datetime.strptime(
-                    filepath.name.split("_")[-1].split(".")[0],
-                    "%Y%m%d-%H%M%S",
-                ),
-            }
-            for filepath in folder_raw_data.glob(
-                "velib_availability_real_time*.json"
-            )
-        ]
-    )
-
-    def get_last_datetime_in_table():
-        stmt = select(func.max(Status.status_datetime))
-        with DatabaseSession() as session:
-            last_datetime_in_table = session.scalar(stmt)
-        if last_datetime_in_table is None:
-            last_datetime_in_table = datetime(2020, 1, 1)
-        return last_datetime_in_table
-
-    last_datetime_in_table = get_last_datetime_in_table()
-
-    files_to_convert = (
-        file_df[file_df["datetime"] > last_datetime_in_table]["filename"]
-        .sort_values()
-        .to_list()
-    )
-
-    # Show the user the dates already converted in output_folder
-    click.echo(f"Dates already converted until {last_datetime_in_table}.")
-
-    for filename in tqdm(files_to_convert):
-        data_conversion_etl = DataConversionSQLETL(
-            folder_raw_data=folder_raw_data,
-            pattern_raw_data=filename,
-            pbar=False,
-        )
-        try:
-            data_conversion_etl.run()
-        except ValueError as e:
-            print(f"Error while converting file {filename}: {e}")
-
-
-@click.command()
-@click.argument("folder_raw_data", type=click.Path(exists=True))
 @click.argument("station_information_path", type=click.Path(exists=True))
 @click.argument("output_folder", type=click.Path(exists=True))
 def conversion_interface(
@@ -473,7 +414,3 @@ def conversion_interface(
             pbar=True,
         )
         data_conversion_etl.run()
-
-
-if __name__ == "__main__":
-    load_to_sql()

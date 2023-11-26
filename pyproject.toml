@@ -7,9 +7,10 @@ readme = "README.md"
 packages = [{ include = "velib_spot_predictor" }]
 
 [tool.poetry.scripts]
-build_model = "velib_spot_predictor.model.save_model:save_model"
 fetch_save_data = "velib_spot_predictor.data.fetch_data:fetch_and_save_raw_data"
 fetch_data_to_s3 = "velib_spot_predictor.data.fetch_data:fetch_raw_data_to_s3"
+fill_station_information_table = "velib_spot_predictor.data.cli:fill_station_information_table"
+load_data_from_local_to_sql = "velib_spot_predictor.data.cli:load_to_sql"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
@@ -106,6 +107,7 @@ exclude = [
 convention = "numpy"
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 addopts = [
     "-v",
     "--cov=velib_spot_predictor",
@@ -117,4 +119,9 @@ env = [
     "S3_AWS_SECRET_ACCESS_KEY=fake_secret_access_key",
     "S3_REGION_NAME=fake_region_name",
     "S3_VELIB_RAW_BUCKET=fake_bucket",
+]
+
+[tool.coverage.run]
+omit = [
+    "velib_spot_predictor/front/*"
 ]

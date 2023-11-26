@@ -11,10 +11,7 @@ from velib_spot_predictor.data.geo import (
     ICatchmentAreaBuilder,
 )
 
-
-@pytest.fixture
-def mock_points_array():
-    return np.array([[0, 0], [0, 2], [2, 2], [2, 0], [1, 1]])
+MOCK_POINTS_ARRAY = np.array([[0, 0], [0, 2], [2, 2], [2, 0], [1, 1]])
 
 
 class TestICatchmentAreaBuilder:
@@ -26,10 +23,10 @@ class TestICatchmentAreaBuilder:
             pass
 
         def _build_points_array(self, df: pd.DataFrame) -> np.ndarray:
-            return mock_points_array()
+            return MOCK_POINTS_ARRAY
 
-    def test_build_voronoi(self, mock_points_array: np.ndarray):
+    def test_build_voronoi(self):
         catchment_area_builder = self.CatchmentAreaBuilder()
         voronoi_series = catchment_area_builder._build_points_array(
-            mock_points_array
+            MOCK_POINTS_ARRAY
         )
