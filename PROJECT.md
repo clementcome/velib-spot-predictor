@@ -28,9 +28,6 @@ Build images:
 ```bash
 docker build -t clementcome/velib_base:v0.1.0 -t clementcome/velib_base:latest  -f docker/Dockerfile.base .
 docker build -t clementcome/velib:v0.1.0 -t clementcome/velib:latest -f docker/Dockerfile .
-docker build -t clementcome/velib-aws:v0.1.0 -t clementcome/velib-aws:latest -f docker/Dockerfile.aws .
-docker tag clementcome/velib-aws:v0.1.0 309622890411.dkr.ecr.eu-west-3.amazonaws.com/clement-velib:v0.1.0
-docker tag clementcome/velib-aws:latest 309622890411.dkr.ecr.eu-west-3.amazonaws.com/clement-velib:latest
 ```
 
 Run image:
@@ -42,13 +39,19 @@ Push image to docker hub:
 ```bash
 docker image push --all-tags clementcome/velib_base
 docker image push --all-tags clementcome/velib
-docker image push --all-tags 309622890411.dkr.ecr.eu-west-3.amazonaws.com/clement-velib
 ```
 
 Using docker allows to schedule with crontab without having to wonder about execution environment. The crontab entry is:
 ```bash
 * * * * * docker run -v /home/clement/projects/velib-spot-predictor/data/raw/automated_fetching_v3:/data velib fetch_save_data /data
 ```
+
+### Filling database with values
+For now, database can be filled with values that are located in a local folder.
+Before loading statuses of the stations, you need to fill the table with station information with the command `fill_station_information_table`.
+Command used is `load_data_from_local_to_sql`.
+
+Documentation of the previous commands is accessed with the usual `--help` flag.
 
 ## CI/CD pipeline
 

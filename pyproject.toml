@@ -9,6 +9,8 @@ packages = [{ include = "velib_spot_predictor" }]
 [tool.poetry.scripts]
 build_model = "velib_spot_predictor.model.save_model:save_model"
 fetch_data = "velib_spot_predictor.data.fetch_data:fetch_data"
+fill_station_information_table = "velib_spot_predictor.data.cli:fill_station_information_table"
+load_data_from_local_to_sql = "velib_spot_predictor.data.cli:load_to_sql"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
@@ -107,6 +109,7 @@ select = ["B", "D", "E", "F", "I", "N", "PL", "S", "W"]
 pydocstyle.convention = "numpy"
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 addopts = [
     "-v",
     "--cov=velib_spot_predictor",
