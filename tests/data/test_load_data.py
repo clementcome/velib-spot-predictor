@@ -1,30 +1,65 @@
+import json
+
 import pandas as pd
 import pytest
 from pytest_mock import MockerFixture
 
-from velib_spot_predictor.data.load_data import load_raw
+from velib_spot_predictor.data.load_data import (
+    load_prepared,
+    load_station_information,
+)
 
 
-def test_load_raw(mocker: MockerFixture):
-    mock_data = pd.DataFrame(
-        {
-            "Actualisation de la donnée": [
-                "2021-01-01 12:00:00+00:00",
-                "2021-01-01 12:15:00+00:00",
-                "2021-01-01 12:30:00+00:00",
-                "2021-01-01 12:45:00+00:00",
-            ],
-            "Heure": [12.0, 12.25, 12.5, 12.75],
+def test_load_prepared(mocker: MockerFixture):
+    mock_read = mocker.patch.object(pd, "read_pickle")
+
+    data = load_prepared("fake_path")
+
+    mock_read.assert_called_once_with("fake_path")
+
+
+def test_load_station_information(mocker: MockerFixture):
+    station_information_json = {
+        "data": {
+            "stations": [
+                {
+                    "station_id": 213688169,
+                    "name": "Benjamin Godard - Victor Hugo",
+                    "lat": 48.865983,
+                    "lon": 2.275725,
+                    "capacity": 35,
+                    "stationCode": "16107",
+                },
+                {
+                    "station_id": 653222953,
+                    "name": "Mairie de Rosny-sous-Bois",
+                    "lat": 48.871256519012,
+                    "lon": 2.4865807592869,
+                    "capacity": 30,
+                    "stationCode": "31104",
+                    "rental_methods": ["CREDITCARD"],
+                },
+                {
+                    "station_id": 17278902806,
+                    "name": "Rouget de L'isle - Watteau",
+                    "lat": 48.778192750803,
+                    "lon": 2.3963020229163,
+                    "capacity": 20,
+                    "stationCode": "44015",
+                },
+            ]
         }
-    )
-    mock_read = mocker.patch.object(pd, "read_csv")
-    mock_read.return_value = mock_data
+    }
+    mocker.patch("builtins.open", mocker.mock_open())
+    mock_json_load = mocker.patch.object(json, "load")
+    mock_json_load.return_value = station_information_json
 
-    data = load_raw("fake_path")
+    station_information = load_station_information("fake_path")
+    mock_json_load.assert_called_once()
 
-    mock_read.assert_called_once_with("fake_path", sep=";")
-    pd.testing.assert_frame_equal(data, mock_data)
-    assert (
-        data["Actualisation de la donnée"].dtype
-        == "datetime64[ns, Europe/Paris]"
-    )
+    assert "station_id" in station_information.columns
+    assert set(station_information["station_id"]) == {
+        213688169,
+        653222953,
+        17278902806,
+    }

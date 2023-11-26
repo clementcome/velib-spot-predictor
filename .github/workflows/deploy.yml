@@ -23,12 +23,20 @@ jobs:
           file: ./docker/Dockerfile.base
           push: true
           tags: clementcome/velib_base:latest,clementcome/velib_base:${{ steps.get-version.outputs.VERSION }}
-      - name: Build and push
+      - name: Build and push version
         uses: docker/build-push-action@v3
         with:
           file: ./docker/Dockerfile
           push: true
-          tags: clementcome/velib:${{ steps.get-version.outputs.VERSION }},clementcome/velib:latest
+          tags: clementcome/velib:${{ steps.get-version.outputs.VERSION }}
+      - name: Build and push latest
+        uses: docker/build-push-action@v3
+        # Add a condition if tag is formatted as vX.Y.Z and not vX.Y.Z-rcN
+        if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc')
+        with:
+          file: ./docker/Dockerfile
+          push: true
+          tags: clementcome/velib:latest
 
   publish-python-package:
     runs-on: ubuntu-latest
