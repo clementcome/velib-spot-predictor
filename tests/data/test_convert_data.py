@@ -1,8 +1,10 @@
 import datetime
+import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from pytest_mock import MockerFixture
 
 from velib_spot_predictor.data.convert_data import (
     DataConversionETL,
@@ -50,17 +52,22 @@ class TestDataConversionExtractor:
     def test_extract_one_file(self, tmpdir):
         pass
 
-    def test_extract(self, tmpdir):
+    def test_extract(self, tmpdir, mocker: MockerFixture):
         date = datetime.datetime.now()
         folder_raw_data = tmpdir.mkdir("raw_data")
         folder_raw_data.join(
             f"velib_availability_real_time_{date:%Y%m%d-%H%M}01.json"
-        ).write("test")
+        ).write("")
         folder_raw_data.join(
             f"velib_availability_real_time_{date:%Y%m%d-%H%M}02.json"
-        ).write("test")
+        ).write("")
+        mock_extract_one_file = mocker.patch.object(
+            DataConversionExtractor,
+            "_extract_one_file",
+            return_value=pd.DataFrame(),
+        )
         extractor = DataConversionExtractor(
             folder_raw_data=Path(folder_raw_data), pattern_raw_data="*.json"
         )
         df = extractor.extract()
-        assert df["data"].iloc[0] == "test"
+        assert mock_extract_one_file.call_count == 2
