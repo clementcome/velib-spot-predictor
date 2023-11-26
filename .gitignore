@@ -198,4 +198,4 @@ pyrightconfig.json
 models
 *.env
 # Test scripts
-test_*
+/test_*
