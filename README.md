@@ -18,3 +18,9 @@ Image is published in clementcome/velib repository.
 
 ### PyPI
 Package is published under velib-spot-predictor package.
+
+## Development
+
+### Installation
+
+To develop locally, clone the repo and in a virtual environment with python 3.9 and poetry installed, run the command `poetry install`.
