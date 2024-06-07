@@ -29,7 +29,7 @@ jobs:
         run: |
           CURRENT_VERSION=$(poetry version -s)
           echo "Current version: $CURRENT_VERSION"
-          RELEASE_CANDIDATE=$(poetry version prerelese -s)
+          RELEASE_CANDIDATE=$(poetry version prerelease -s)
           echo "Release candidate: $RELEASE_CANDIDATE"
           git config --global user.email "your-email@example.com"
           git config --global user.name "Your Name"
