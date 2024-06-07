@@ -1,11 +1,11 @@
 """Fetch data from the Velib API and save it to a file."""
+
 import abc
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
 
-import boto3
 import click
 import pytz
 import requests
@@ -119,12 +119,7 @@ class S3VelibRawSaver(IVelibRawSaver):
             availability of spots in Velib stations
         """
         s3_aws_config = S3AWSConfig()
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=s3_aws_config.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=s3_aws_config.AWS_SECRET_ACCESS_KEY,
-            region_name=s3_aws_config.REGION_NAME,
-        )
+        s3 = s3_aws_config.get_client()
         s3.put_object(
             Body=json.dumps(data),
             Bucket=s3_aws_config.VELIB_RAW_BUCKET,
@@ -151,13 +146,7 @@ def fetch_and_save_raw_data(save_folder: str) -> None:
 
 @click.command()
 def fetch_raw_data_to_s3() -> None:
-    """Fetch data from the Velib API and save it to a file.
-
-    Parameters
-    ----------
-    save_folder : str
-        Path to the folder where the fetched data will be saved
-    """
+    """Fetch data from the Velib API and save it to a file."""
     data = VelibRawExtractor(API_URL).extract()
     S3VelibRawSaver().save(data)
 
