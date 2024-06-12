@@ -14,6 +14,46 @@ class AWSConfig(BaseSettings):
     If ACCESS_KEY_ID is provided, SECRET_ACCESS_KEY must also be provided.
     If ACCESS_KEY_ID is not provided, default credentials will be used to get
     boto3 client.
+
+    Examples
+    --------
+    Examples are written in order of priority, meaning that if you pass values,
+    they will be used over the environment variables for example:
+    1. Using passed values:
+        >>> config = AWSConfig(
+        ...     AWS_ACCESS_KEY_ID="your_access_key_id",
+        ...     AWS_SECRET_ACCESS_KEY="your_secret_access_key",
+        ...     AWS_SESSION_TOKEN="your_session_token",
+        ...     REGION_NAME="us-east-1"
+        ... )
+
+    2. Using environment variables:
+        >>> import os
+        >>> os.environ['AWS_ACCESS_KEY_ID'] = 'your_access_key_id'
+        >>> os.environ['AWS_SECRET_ACCESS_KEY'] = 'your_secret_access_key'
+        >>> os.environ['AWS_SESSION_TOKEN'] = 'your_session_token'
+        >>> os.environ['REGION_NAME'] = 'us-east-1'
+        >>> config = AWSConfig()
+
+    3. Using .env file (default .env or passed specific _env_file):
+        Ensure you have a .env file with the following content:
+
+        ```
+        AWS_ACCESS_KEY_ID=your_access_key_id
+        AWS_SECRET_ACCESS_KEY=your_secret_access_key
+        AWS_SESSION_TOKEN=your_session_token
+        REGION_NAME=us-east-1
+        ```
+
+        >>> config = AWSConfig()
+
+        Or for a specific env file:
+        >>> config = AWSConfig(_env_file='path/to/your/.env')
+
+    4. Using default values:
+        >>> config = AWSConfig()
+        >>> # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN
+        >>> # will be None, REGION_NAME will be "eu-west-3"
     """
 
     AWS_ACCESS_KEY_ID: Optional[str] = None
@@ -53,7 +93,12 @@ class AWSConfig(BaseSettings):
 
 
 class S3AWSConfig(AWSConfig):
-    """Configuration for AWS S3."""
+    """Configuration for AWS S3.
+
+    Environment variables should be prefixed with "S3_".
+    By default the .env file is "aws.env" but you can change it by passing a
+    specific _env_file.
+    """
 
     VELIB_RAW_BUCKET: str = "clement-velib-raw-automation"
 
