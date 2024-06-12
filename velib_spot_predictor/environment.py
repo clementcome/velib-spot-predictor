@@ -3,6 +3,7 @@
 from typing import Optional
 
 import boto3
+from loguru import logger
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,30 +18,38 @@ class AWSConfig(BaseSettings):
 
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_SESSION_TOKEN: Optional[str] = None
     REGION_NAME: Optional[str] = "eu-west-3"
 
     @model_validator(mode="after")
     def check_credentials(self) -> None:
         """Check if the credentials are valid."""
-        if (
-            self.AWS_ACCESS_KEY_ID is not None
-            and self.AWS_SECRET_ACCESS_KEY is None
-        ):
-            raise ValueError(
-                "If AWS_ACCESS_KEY_ID is provided, AWS_SECRET_ACCESS_KEY must "
-                "also be provided"
-            )
+        if self.AWS_ACCESS_KEY_ID is not None:
+            if self.AWS_SECRET_ACCESS_KEY is None:
+                raise ValueError(
+                    "If AWS_ACCESS_KEY_ID is provided, AWS_SECRET_ACCESS_KEY "
+                    "must also be provided"
+                )
+            if self.AWS_SESSION_TOKEN is None:
+                logger.info("Using permanent credentials")
+            else:
+                logger.info("Using temporary credentials")
 
     def get_client(self, service: str) -> boto3.client:
         """Return a boto3 client."""
+        client_kwargs = {
+            "region_name": self.REGION_NAME,
+        }
         if self.AWS_ACCESS_KEY_ID is not None:
-            return boto3.client(
-                service,
-                aws_access_key_id=self.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
-                region_name=self.REGION_NAME,
+            client_kwargs.update(
+                {
+                    "aws_access_key_id": self.AWS_ACCESS_KEY_ID,
+                    "aws_secret_access_key": self.AWS_SECRET_ACCESS_KEY,
+                }
             )
-        return boto3.client(service, region_name=self.REGION_NAME)
+            if self.AWS_SESSION_TOKEN is not None:
+                client_kwargs["aws_session_token"] = self.AWS_SESSION_TOKEN
+        return boto3.client(service, **client_kwargs)
 
 
 class S3AWSConfig(AWSConfig):
