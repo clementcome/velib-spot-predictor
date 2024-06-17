@@ -8,8 +8,7 @@ packages = [{ include = "velib_spot_predictor" }]
 
 [tool.poetry.scripts]
 build_model = "velib_spot_predictor.model.save_model:save_model"
-fetch_save_data = "velib_spot_predictor.data.fetch_data:fetch_and_save_raw_data"
-fetch_data_to_s3 = "velib_spot_predictor.data.fetch_data:fetch_raw_data_to_s3"
+fetch_data = "velib_spot_predictor.data.fetch_data:fetch_data"
 
 [tool.poetry.dependencies]
 python = "^3.9"
