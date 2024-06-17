@@ -16,8 +16,7 @@ from velib_spot_predictor.data.fetch_data import (
     LocalVelibRawSaver,
     S3VelibRawSaver,
     VelibRawExtractor,
-    fetch_and_save_raw_data,
-    fetch_raw_data_to_s3,
+    fetch_data,
 )
 
 
@@ -81,34 +80,35 @@ class TestS3Saver:
         saver.save([])
         mock_s3_client.put_object.assert_called_once()
 
+class TestFetchData:
 
-def test_fetch_and_save_raw_data_ok(mocker: MockerFixture):
-    mock_extractor = mocker.patch.object(
-        VelibRawExtractor, "extract", return_value=[]
-    )
-    mock_saver = mocker.patch.object(LocalVelibRawSaver, "save")
+    def test_fetch_data_to_local(self, mocker: MockerFixture):
+        mock_extractor = mocker.patch.object(
+            VelibRawExtractor, "extract", return_value=[]
+        )
+        mock_saver = mocker.patch.object(LocalVelibRawSaver, "save")
 
-    runner = CliRunner()
-    folder_test = Path("test")
-    folder_test.mkdir(exist_ok=True)
+        runner = CliRunner()
+        folder_test = Path("test")
+        folder_test.mkdir(exist_ok=True)
 
-    result = runner.invoke(fetch_and_save_raw_data, [str(folder_test)])
+        result = runner.invoke(fetch_data, ["-s", str(folder_test)])
 
-    shutil.rmtree(folder_test)
+        shutil.rmtree(folder_test)
 
-    mock_extractor.assert_called_once_with()
-    mock_saver.assert_called_once_with([])
+        mock_extractor.assert_called_once_with()
+        mock_saver.assert_called_once_with([])
 
 
-def test_fetch_to_s3(mocker: MockerFixture):
-    mock_extractor = mocker.patch.object(
-        VelibRawExtractor, "extract", return_value=[]
-    )
-    mock_saver = mocker.patch.object(S3VelibRawSaver, "save")
+    def test_fetch_data_to_s3(self, mocker: MockerFixture):
+        mock_extractor = mocker.patch.object(
+            VelibRawExtractor, "extract", return_value=[]
+        )
+        mock_saver = mocker.patch.object(S3VelibRawSaver, "save")
 
-    runner = CliRunner()
+        runner = CliRunner()
 
-    result = runner.invoke(fetch_raw_data_to_s3, [])
+        result = runner.invoke(fetch_data, ["--s3"])
 
-    mock_extractor.assert_called_once_with()
-    mock_saver.assert_called_once_with([])
+        mock_extractor.assert_called_once_with()
+        mock_saver.assert_called_once_with([])

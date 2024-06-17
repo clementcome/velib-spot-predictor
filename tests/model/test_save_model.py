@@ -7,9 +7,9 @@ from velib_spot_predictor.model.save_model import save_model
 
 def test_save_model(mocker: MockerFixture):
     """Test save_model."""
-    # Patch load_raw
-    mock_load_raw = mocker.patch(
-        "velib_spot_predictor.model.save_model.load_raw",
+    # Patch load_prepared
+    mock_load_prepared = mocker.patch(
+        "velib_spot_predictor.model.save_model.load_prepared",
         return_value="data",
     )
     # Patch train
@@ -29,8 +29,8 @@ def test_save_model(mocker: MockerFixture):
         ["data-path", "model-path"],
     )
     # Assert
-    # Assert load_raw has been called
-    mock_load_raw.assert_called_once_with("data-path")
+    # Assert load_prepared has been called
+    mock_load_prepared.assert_called_once_with("data-path")
     # Assert train has been called
     mock_train.assert_called_once_with("data")
     # Assert dump has been called

@@ -129,25 +129,20 @@ class S3VelibRawSaver(IVelibRawSaver):
 
 
 @click.command()
-@click.argument("save-folder", type=click.Path(exists=True, file_okay=False))
-def fetch_and_save_raw_data(save_folder: str) -> None:
-    """Fetch data from the Velib API and save it to a file.
-
-    Parameters
-    ----------
-    save_folder : str
-        Path to the folder where the fetched data will be saved
-    """
+@click.option(
+    "-s",
+    "--save-folder",
+    type=click.Path(exists=True, file_okay=False),
+    help="Local folder where the data will be saved",
+)
+@click.option("--s3", is_flag=True, help="Save the data in an S3 bucket")
+def fetch_data(save_folder: str = None, s3: bool = False) -> None:
+    """Fetch data from the Velib API and save it."""
     data = VelibRawExtractor(API_URL).extract()
-    LocalVelibRawSaver(save_folder).save(data)
-
-    click.echo("Fetching and saving data were successful")
-
-
-@click.command()
-def fetch_raw_data_to_s3() -> None:
-    """Fetch data from the Velib API and save it to a file."""
-    data = VelibRawExtractor(API_URL).extract()
-    S3VelibRawSaver().save(data)
-
-    click.echo("Fetching and saving data were successful")
+    click.echo("Data fetched successfully")
+    if save_folder:
+        LocalVelibRawSaver(save_folder).save(data)
+        click.echo("Data saved locally")
+    if s3:
+        S3VelibRawSaver().save(data)
+        click.echo("Data saved in S3")

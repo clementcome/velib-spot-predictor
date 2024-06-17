@@ -101,8 +101,9 @@ class TestS3AWSConfig:
         data = {
             "AWS_ACCESS_KEY_ID": "fake_access_key",
             "AWS_SECRET_ACCESS_KEY": "fake_secret_key",
+            "AWS_SESSION_TOKEN": "fake_token",
             "REGION_NAME": "eu-west-3",
-            "VELIB_RAW_BUCKET": "clement-velib-raw-automation",
+            "VELIB_RAW_BUCKET": "fake-bucket",
         }
         config = S3AWSConfig(**data)
         mock_boto_client = mocker.patch(
@@ -117,6 +118,7 @@ class TestS3AWSConfig:
             "s3",
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
+            aws_session_token="fake_token",
             region_name="eu-west-3",
         )
         assert client == "mock_client"
