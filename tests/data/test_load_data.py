@@ -13,7 +13,7 @@ from velib_spot_predictor.data.load_data import (
 def test_load_prepared(mocker: MockerFixture):
     mock_read = mocker.patch.object(pd, "read_pickle")
 
-    data = load_prepared("fake_path")
+    load_prepared("fake_path")
 
     mock_read.assert_called_once_with("fake_path")
 

@@ -7,11 +7,10 @@ import boto3
 import pytest
 import requests
 from click.testing import CliRunner
-from freezegun import freeze_time
 from pytest_mock import MockerFixture
-
+from time_machine import travel
 from velib_spot_predictor.data.constants import API_URL
-from velib_spot_predictor.data.fetch_data import (
+from velib_spot_predictor.data.fetch import (
     IVelibRawSaver,
     LocalVelibRawSaver,
     S3VelibRawSaver,
@@ -50,7 +49,7 @@ class TestIVelibRawSaver:
         def save(self, data: list) -> None:
             pass
 
-    @freeze_time("2021-01-01 12:00:00")
+    @travel("2021-01-01 12:00:00")
     def test_get_filename(self):
         file_pattern = re.compile(
             r"velib_availability_real_time_[0-9]{8}-[0-9]{6}\.json"
@@ -80,8 +79,8 @@ class TestS3Saver:
         saver.save([])
         mock_s3_client.put_object.assert_called_once()
 
-class TestFetchData:
 
+class TestFetchData:
     def test_fetch_data_to_local(self, mocker: MockerFixture):
         mock_extractor = mocker.patch.object(
             VelibRawExtractor, "extract", return_value=[]
@@ -92,13 +91,12 @@ class TestFetchData:
         folder_test = Path("test")
         folder_test.mkdir(exist_ok=True)
 
-        result = runner.invoke(fetch_data, ["-s", str(folder_test)])
+        runner.invoke(fetch_data, ["-s", str(folder_test)])
 
         shutil.rmtree(folder_test)
 
         mock_extractor.assert_called_once_with()
         mock_saver.assert_called_once_with([])
-
 
     def test_fetch_data_to_s3(self, mocker: MockerFixture):
         mock_extractor = mocker.patch.object(
@@ -108,7 +106,7 @@ class TestFetchData:
 
         runner = CliRunner()
 
-        result = runner.invoke(fetch_data, ["--s3"])
+        runner.invoke(fetch_data, ["--s3"])
 
         mock_extractor.assert_called_once_with()
         mock_saver.assert_called_once_with([])

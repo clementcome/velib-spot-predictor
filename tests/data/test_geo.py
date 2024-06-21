@@ -27,6 +27,6 @@ class TestICatchmentAreaBuilder:
 
     def test_build_voronoi(self):
         catchment_area_builder = self.CatchmentAreaBuilder()
-        voronoi_series = catchment_area_builder._build_points_array(
+        catchment_area_builder._build_points_array(
             MOCK_POINTS_ARRAY
         )
