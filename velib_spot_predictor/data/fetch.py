@@ -11,6 +11,7 @@ import pytz
 import requests
 
 from velib_spot_predictor.data.constants import API_URL
+from velib_spot_predictor.data.publish import SQLDataFrameETL
 from velib_spot_predictor.environment import S3AWSConfig
 
 
@@ -136,13 +137,30 @@ class S3VelibRawSaver(IVelibRawSaver):
     help="Local folder where the data will be saved",
 )
 @click.option("--s3", is_flag=True, help="Save the data in an S3 bucket")
-def fetch_data(save_folder: str = None, s3: bool = False) -> None:
+@click.option("--database", is_flag=True, help="Load the data in the database")
+def fetch_data(
+    save_folder: str = None, s3: bool = False, database: bool = False
+) -> None:
     """Fetch data from the Velib API and save it."""
     data = VelibRawExtractor(API_URL).extract()
     click.echo("Data fetched successfully")
+    if not any([save_folder, s3, database]):
+        click.echo("No save option selected, data will not be saved")
     if save_folder:
-        LocalVelibRawSaver(save_folder).save(data)
-        click.echo("Data saved locally")
+        try:
+            LocalVelibRawSaver(save_folder).save(data)
+            click.echo("Data saved locally")
+        except Exception as e:
+            click.echo(f"Failed to save data locally: {str(e)}")
     if s3:
-        S3VelibRawSaver().save(data)
-        click.echo("Data saved in S3")
+        try:
+            S3VelibRawSaver().save(data)
+            click.echo("Data saved in S3")
+        except Exception as e:
+            click.echo(f"Failed to save data in S3: {str(e)}")
+    if database:
+        try:
+            SQLDataFrameETL(data=data).run()
+            click.echo("Data loaded in the database")
+        except Exception as e:
+            click.echo(f"Failed to load data in the database: {str(e)}")

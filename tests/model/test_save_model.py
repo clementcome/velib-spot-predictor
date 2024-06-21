@@ -24,7 +24,7 @@ def test_save_model(mocker: MockerFixture):
     )
     # Run save_model
     runner = CliRunner()
-    result = runner.invoke(
+    runner.invoke(
         save_model,
         ["data-path", "model-path"],
     )

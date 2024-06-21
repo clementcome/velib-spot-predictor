@@ -1,4 +1,5 @@
 """Base classes for the ETL process."""
+
 import abc
 
 import pandas as pd
@@ -60,5 +61,6 @@ class IETL:
     def run(self) -> None:
         """Run the ETL process."""
         df = self.extractor.extract()
-        df = self.transformer.transform(df)
+        if self.transformer is not None:
+            df = self.transformer.transform(df)
         self.loader.load(df)
