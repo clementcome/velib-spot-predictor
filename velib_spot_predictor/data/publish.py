@@ -292,8 +292,22 @@ class SQLStationScopeTransformer(BaseModel, ITransformer):
     Get the date from the filename.
     """
 
+    def _get_station_ids(self) -> List[int]:
+        """
+        Get station ids present in the Station table.
+
+        Returns
+        -------
+        List[int]
+            List of station ids
+        """
+        stmt = select(Station.station_id)
+        with DatabaseSession() as session:
+            station_id_list = session.scalars(stmt).all()
+        return station_id_list
+
     def transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Scope the data to the station_id in the database.
+        """Scope the data to the station ids in the database.
 
         Parameters
         ----------
@@ -314,12 +328,6 @@ class SQLStationScopeTransformer(BaseModel, ITransformer):
             )
         data = data[data["station_id"].isin(station_id_list)]
         return data
-
-    def _get_station_ids(self) -> List[int]:
-        stmt = select(Station.station_id)
-        with DatabaseSession() as session:
-            station_id_list = session.scalars(stmt).all()
-        return station_id_list
 
 
 ## Loaders

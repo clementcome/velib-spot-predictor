@@ -6,6 +6,8 @@ import boto3
 from loguru import logger
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 
 class DBConfig(BaseSettings):
@@ -23,6 +25,25 @@ class DBConfig(BaseSettings):
     def db_url(self) -> str:
         """Return the database URL."""
         return f"mysql+mysqlconnector://{self.USER}:{self.PASSWORD}@{self.HOST}/{self.NAME}"
+
+    @property
+    def db_url_secured(self) -> str:
+        """Return the database URL with password hidden."""
+        return (
+            f"mysql+mysqlconnector://{self.USER}:***@{self.HOST}/{self.NAME}"
+        )
+
+    def test_connection(self):
+        """Test the connection to the database."""
+        try:
+            engine = create_engine(self.db_url)
+            connection = engine.connect()
+            connection.close()
+            logger.info("Connection to {} successful", self.db_url_secured)
+        except (OperationalError, ProgrammingError) as e:
+            raise ConnectionError(
+                f"Connection to {self.db_url_secured} failed: {e}"
+            ) from e
 
 
 class AWSConfig(BaseSettings):
