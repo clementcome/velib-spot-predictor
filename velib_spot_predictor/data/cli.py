@@ -1,4 +1,5 @@
 """Command line interface for the data module."""
+
 from datetime import datetime
 from pathlib import Path
 
@@ -7,13 +8,13 @@ import pandas as pd
 from sqlalchemy import func, select
 from tqdm import tqdm
 
-from velib_spot_predictor.data.convert_data import DataConversionSQLETL
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Status
 from velib_spot_predictor.data.load_data import (
     load_station_information,
     save_station_information_to_sql,
 )
+from velib_spot_predictor.data.publish import FolderToSQLETL
 
 
 @click.command()
@@ -130,7 +131,7 @@ def load_to_sql(folder_raw_data):
     )
 
     for filename in tqdm(files_to_convert):
-        data_conversion_etl = DataConversionSQLETL(
+        data_conversion_etl = FolderToSQLETL(
             folder_raw_data=folder_raw_data,
             pattern_raw_data=filename,
             pbar=False,

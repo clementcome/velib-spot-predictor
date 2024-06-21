@@ -17,7 +17,7 @@ def test_train_model(mocker: MockFixture):
     mock_fit = mocker.patch.object(Model, "fit")
 
     # When
-    model = train(mock_data)
+    train(mock_data)
 
     # Then
     mock_fit.assert_called_once()

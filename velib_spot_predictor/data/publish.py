@@ -1,14 +1,25 @@
 """Module to transform raw data into a clean database."""
+
 import abc
+import json
 import logging
+import re
 from datetime import datetime
 from functools import cached_property
+from io import StringIO
 from pathlib import Path
-from typing import Union
+from typing import List, Union
 
 import click
 import pandas as pd
-from pydantic import BaseModel, DirectoryPath, FilePath, NewPath
+from pydantic import (
+    BaseModel,
+    DirectoryPath,
+    Field,
+    FilePath,
+    NewPath,
+    field_validator,
+)
 from sqlalchemy import select
 from tqdm import tqdm
 
@@ -25,8 +36,115 @@ from velib_spot_predictor.utils import get_one_filepath
 
 logger = logging.getLogger(__name__)
 
+## Utils
 
-class DataConversionExtractor(BaseModel, IExtractor):
+
+class JsonToSQLBase:
+    """Base functions for data conversion from json to SQL."""
+
+    @staticmethod
+    def _flatten_column(column: pd.Series) -> pd.DataFrame:
+        """Flatten the column of a dataframe.
+
+        Parameters
+        ----------
+        column : pd.Series
+            Column to flatten
+
+
+        Returns
+        -------
+        pd.DataFrame
+            Flattened column
+        """
+        flattened_column = pd.DataFrame()
+        n_columns = len(column.iloc[0])
+        for i in range(n_columns):
+            name = list(column.iloc[0][i].keys())[0]
+            column_name = f"{column.name}_{name}"
+            flattened_column[column_name] = column.str[i].str[name]
+
+        return flattened_column
+
+    @staticmethod
+    def clean_data(data: pd.DataFrame) -> pd.DataFrame:
+        """Clean the data.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Data to clean
+
+        Returns
+        -------
+        pd.DataFrame
+            Cleaned data
+        """
+        column_to_flatten = ["num_bikes_available_types"]
+        for column in column_to_flatten:
+            flattened_column = JsonToSQLBase._flatten_column(data[column])
+            data = pd.concat([data, flattened_column], axis=1)
+        data = data.drop(columns=column_to_flatten)
+        return data
+
+    @staticmethod
+    def extract_datetime_from_filename(filename: str) -> pd.Timestamp:
+        """Extract the datetime from the filename.
+
+        Parameters
+        ----------
+        filename : str
+            Filename to extract the datetime from
+
+
+        Returns
+        -------
+        pd.Timestamp
+            Extracted datetime
+        """
+        match = re.search(r"(\d{8}-\d{6})", filename)
+        if match:
+            datetime_str = match.group(0)
+            return pd.Timestamp(datetime_str).round("min")
+        else:
+            raise ValueError("Invalid filename format")
+
+
+## Extractors
+
+
+class DataFrameExtractor(BaseModel, IExtractor):
+    """Simple extractor to extract the data from an input dataframe."""
+
+    data: list
+    timestamp: datetime = Field(
+        default_factory=lambda: pd.Timestamp.now().floor("min")
+    )
+
+    @field_validator("timestamp", mode="after")
+    @classmethod
+    def check_rounding(cls, timestamp: datetime):
+        """Check that the timestamp is rounded to the minute."""
+        return pd.Timestamp(timestamp).floor("min")
+
+    model_config = {
+        "arbitrary_types_allowed": True,
+    }
+
+    def extract(self) -> pd.DataFrame:
+        """Extract the data.
+
+        Returns
+        -------
+        pd.DataFrame
+            Extracted data
+        """
+        return JsonToSQLBase.clean_data(
+            pd.read_json(StringIO(json.dumps(self.data)))
+        ).assign(datetime=self.timestamp)
+
+
+class FolderExtractor(BaseModel, IExtractor):
     """Extract the data from the raw data folder.
 
     Parameters
@@ -61,29 +179,6 @@ class DataConversionExtractor(BaseModel, IExtractor):
         filepath = get_one_filepath(self.folder_raw_data, file_pattern)
         return filepath
 
-    def _flatten_column(self, column: pd.Series) -> pd.DataFrame:
-        """Flatten the column of a dataframe.
-
-        Parameters
-        ----------
-        column : pd.Series
-            Column to flatten
-
-
-        Returns
-        -------
-        pd.DataFrame
-            Flattened column
-        """
-        flattened_column = pd.DataFrame()
-        n_columns = len(column.iloc[0])
-        for i in range(n_columns):
-            name = list(column.iloc[0][i].keys())[0]
-            column_name = f"{column.name}_{name}"
-            flattened_column[column_name] = column.str[i].str[name]
-
-        return flattened_column
-
     def _extract_one_file(self, filepath: Path) -> pd.DataFrame:
         """Extract the data from one file.
 
@@ -98,13 +193,7 @@ class DataConversionExtractor(BaseModel, IExtractor):
         pd.DataFrame
             Extracted data
         """
-        data = pd.read_json(filepath)
-        column_to_flatten = ["num_bikes_available_types"]
-        for column in column_to_flatten:
-            flattened_column = self._flatten_column(data[column])
-            data = pd.concat([data, flattened_column], axis=1)
-        data = data.drop(columns=column_to_flatten)
-        return data
+        return JsonToSQLBase.clean_data(pd.read_json(filepath))
 
     def extract(self) -> pd.DataFrame:
         """Extract all the data contained in the folder.
@@ -126,18 +215,25 @@ class DataConversionExtractor(BaseModel, IExtractor):
             disable=not self.pbar,
         ):
             try:
-                data_dict[filepath.name] = self._extract_one_file(filepath)
+                data_dict[filepath.name] = self._extract_one_file(
+                    filepath
+                ).assign(
+                    datetime=JsonToSQLBase.extract_datetime_from_filename(
+                        filepath.name
+                    )
+                )
             except Exception as e:
                 print(f"Error while extracting file {filepath}: {e}")
         if len(data_dict) == 0:
             raise ValueError("No data extracted")
-        data = pd.concat(data_dict, axis=0).reset_index(
-            names=["filename", "index"]
-        )
+        data = pd.concat(data_dict, axis=0, ignore_index=True)
         return data
 
 
-class DataConversionLocalTransformer(BaseModel, ITransformer):
+## Transformers
+
+
+class LocalStationInformationTransformer(BaseModel, ITransformer):
     """Transform the data.
 
     Get the date from the filename.
@@ -179,12 +275,6 @@ class DataConversionLocalTransformer(BaseModel, ITransformer):
         pd.DataFrame
             Transformed data
         """
-        data["datetime"] = pd.to_datetime(
-            data["filename"].str.extract(r"(\d{8}-\d{6})")[0],
-            format="%Y%m%d-%H%M%S",
-            errors="coerce",
-        )
-        data = data.drop(columns=["filename", "index"])
         data = data.merge(
             self.station_information[
                 ["station_id", "name", "capacity", "lat", "lon"]
@@ -196,7 +286,46 @@ class DataConversionLocalTransformer(BaseModel, ITransformer):
         return data
 
 
-class DataConversionFileLoader(BaseModel, ILoader):
+class SQLStationScopeTransformer(BaseModel, ITransformer):
+    """Transform the data.
+
+    Get the date from the filename.
+    """
+
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Scope the data to the station_id in the database.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Data to transform
+
+        Returns
+        -------
+        pd.DataFrame
+            Transformed data
+        """
+        station_id_list = self._get_station_ids()
+        is_in_station_id_list = data["station_id"].isin(station_id_list)
+        if not is_in_station_id_list.all():
+            logger.warning(
+                "Data contains station_id not in the database: "
+                f"{data[~is_in_station_id_list]['station_id'].unique()}"
+            )
+        data = data[data["station_id"].isin(station_id_list)]
+        return data
+
+    def _get_station_ids(self) -> List[int]:
+        stmt = select(Station.station_id)
+        with DatabaseSession() as session:
+            station_id_list = session.scalars(stmt).all()
+        return station_id_list
+
+
+## Loaders
+
+
+class FileLoader(BaseModel, ILoader):
     """Load the data into a file.
 
     Parameters
@@ -218,41 +347,7 @@ class DataConversionFileLoader(BaseModel, ILoader):
         data.to_pickle(self.output_file)
 
 
-class DataConversionSQLTransformer(BaseModel, ITransformer):
-    """Transform the data.
-
-    Get the date from the filename.
-    """
-
-    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Transform the data.
-
-        Get the date from the filename.
-
-        Parameters
-        ----------
-        data : pd.DataFrame
-            Data to transform
-
-        Returns
-        -------
-        pd.DataFrame
-            Transformed data
-        """
-        data["datetime"] = pd.to_datetime(
-            data["filename"].str.extract(r"(\d{8}-\d{6})")[0],
-            format="%Y%m%d-%H%M%S",
-            errors="coerce",
-        )
-        data = data.drop(columns=["filename", "index"])
-        stmt = select(Station.station_id)
-        with DatabaseSession() as session:
-            station_id_list = session.scalars(stmt).all()
-        data = data[data["station_id"].isin(station_id_list)]
-        return data
-
-
-class DataConversionSQLLoader(BaseModel, ILoader):
+class SQLLoader(BaseModel, ILoader):
     """Load the data into a SQL database.
 
     Parameters
@@ -294,7 +389,35 @@ class DataConversionSQLLoader(BaseModel, ILoader):
             )
 
 
-class DataConversionETL(BaseModel, IETL):
+## ETLs
+
+
+class SQLDataFrameETL(BaseModel, IETL):
+    """ETL to convert raw data into a clean database."""
+
+    data: list
+
+    model_config = {
+        "arbitrary_types_allowed": True,
+    }
+
+    @property
+    def extractor(self) -> IExtractor:
+        """Extractor."""
+        return DataFrameExtractor(data=self.data)
+
+    @property
+    def transformer(self) -> ITransformer:
+        """Transformer."""
+        return SQLStationScopeTransformer()
+
+    @property
+    def loader(self) -> ILoader:
+        """Loader."""
+        return SQLLoader(table_name="station_status")
+
+
+class BaseFolderETL(BaseModel, IETL):
     """ETL to convert raw data into a clean database."""
 
     folder_raw_data: DirectoryPath
@@ -304,7 +427,7 @@ class DataConversionETL(BaseModel, IETL):
     @property
     def extractor(self) -> IExtractor:
         """Extractor."""
-        return DataConversionExtractor(
+        return FolderExtractor(
             folder_raw_data=self.folder_raw_data,
             pattern_raw_data=self.pattern_raw_data,
             pbar=self.pbar,
@@ -312,7 +435,7 @@ class DataConversionETL(BaseModel, IETL):
 
     @property
     @abc.abstractmethod
-    def transformer(self) -> DataConversionLocalTransformer:
+    def transformer(self) -> LocalStationInformationTransformer:
         """Transformer."""
 
     @property
@@ -321,37 +444,40 @@ class DataConversionETL(BaseModel, IETL):
         """Loader."""
 
 
-class DataConversionLocalETL(DataConversionETL):
+class FolderToLocalETL(BaseFolderETL):
     """ETL to convert clean raw data and save as local file."""
 
     station_information_path: FilePath
     output_file: Union[FilePath, NewPath]
 
     @property
-    def transformer(self) -> DataConversionLocalTransformer:
+    def transformer(self) -> LocalStationInformationTransformer:
         """Transformer."""
-        return DataConversionLocalTransformer(
+        return LocalStationInformationTransformer(
             station_information_path=self.station_information_path
         )
 
     @property
-    def loader(self) -> DataConversionFileLoader:
+    def loader(self) -> FileLoader:
         """Loader."""
-        return DataConversionFileLoader(output_file=self.output_file)
+        return FileLoader(output_file=self.output_file)
 
 
-class DataConversionSQLETL(DataConversionETL):
+class FolderToSQLETL(BaseFolderETL):
     """ETL to convert clean raw data and push to a database."""
 
     @property
-    def transformer(self) -> DataConversionSQLTransformer:
+    def transformer(self) -> SQLStationScopeTransformer:
         """Transformer."""
-        return DataConversionSQLTransformer()
+        return SQLStationScopeTransformer()
 
     @property
-    def loader(self) -> DataConversionSQLLoader:
+    def loader(self) -> SQLLoader:
         """Loader."""
-        return DataConversionSQLLoader(table_name="station_status")
+        return SQLLoader(table_name="station_status")
+
+
+## CLI
 
 
 @click.command()
@@ -406,7 +532,7 @@ def conversion_interface(
         if click.confirm(f"Convert {date} ?"):
             dates_to_convert.append(date)
     for date in dates_to_convert:
-        data_conversion_etl = DataConversionLocalETL(
+        data_conversion_etl = FolderToLocalETL(
             folder_raw_data=folder_raw_data,
             pattern_raw_data=f"*{date:%Y%m%d}*.json",
             station_information_path=station_information_path,

@@ -8,7 +8,7 @@ packages = [{ include = "velib_spot_predictor" }]
 
 [tool.poetry.scripts]
 build_model = "velib_spot_predictor.model.save_model:save_model"
-fetch_data = "velib_spot_predictor.data.fetch_data:fetch_data"
+fetch_data = "velib_spot_predictor.data.fetch:fetch_data"
 fill_station_information_table = "velib_spot_predictor.data.cli:fill_station_information_table"
 load_data_from_local_to_sql = "velib_spot_predictor.data.cli:load_to_sql"
 
@@ -52,8 +52,8 @@ pytest-cov = "^4.1.0"
 pytest-mock = "^3.11.1"
 pytest-asyncio = "^0.21.1"
 httpx = "^0.24.1"
-freezegun = "^1.2.2"
 pytest-env = "^1.0.1"
+time-machine = "^2.14.1"
 
 
 [tool.poetry.group.dev]
@@ -98,7 +98,6 @@ line-length = 79
 select = ["B", "D", "E", "F", "I", "N", "PL", "S", "W"]
 ignore = ["S301"]
 exclude = [
-    "tests/**",
     "notebooks/**",
     "scripts",
     "velib_spot_predictor/data/database/alembic",
@@ -114,6 +113,7 @@ addopts = [
     "-v",
     "--cov=velib_spot_predictor",
     "--cov-report=xml",
+    "--cov-report=term-missing",
     "--cov-fail-under=70",
 ]
 env = [
