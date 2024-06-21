@@ -26,8 +26,9 @@ target_metadata = Base.metadata
 # ... etc.
 from velib_spot_predictor.environment import DBConfig
 
-db_url = DBConfig().db_url
-config.set_main_option("sqlalchemy.url", db_url)
+db_config = DBConfig()
+db_config.test_connection()
+config.set_main_option("sqlalchemy.url", db_config.db_url)
 
 
 def run_migrations_offline() -> None:

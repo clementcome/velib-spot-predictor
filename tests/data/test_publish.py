@@ -1,5 +1,6 @@
-import datetime
 import json
+import logging
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -69,7 +70,7 @@ class TestJsonToSQLBase:
         # When
         actual = JsonToSQLBase.extract_datetime_from_filename(filename)
         # Then
-        expected = datetime.datetime(2021, 1, 1, 12, 0)
+        expected = datetime(2021, 1, 1, 12, 0)
         assert actual == expected
         expected_pandas = pd.Timestamp("2021-01-01 12:00")
         assert actual == expected_pandas
@@ -102,15 +103,15 @@ class TestDataFrameExtractor:
         extractor = DataFrameExtractor(data=fake_raw_data)
         # Then
         assert extractor.data == fake_raw_data
-        assert extractor.timestamp == datetime.datetime(2021, 1, 1, 12, 0, 0)
+        assert extractor.timestamp == datetime(2021, 1, 1, 12, 0, 0)
 
     def test_init_with_timestamp(self, fake_raw_data):
-        timestamp = datetime.datetime(2021, 1, 1, 12, 1, 10)
+        timestamp = datetime(2021, 1, 1, 12, 1, 10)
         # When
         extractor = DataFrameExtractor(data=fake_raw_data, timestamp=timestamp)
         # Then
         assert extractor.data == fake_raw_data
-        assert extractor.timestamp == datetime.datetime(2021, 1, 1, 12, 1, 0)  # Rounded
+        assert extractor.timestamp == datetime(2021, 1, 1, 12, 1, 0)  # Rounded
 
     @travel("2021-01-01 12:00:10")
     def test_extract(self, fake_raw_data):
@@ -149,7 +150,7 @@ class TestFolderExtractor:
         )
 
     def test_extract(self, tmpdir, mocker: MockerFixture):
-        date = datetime.datetime.now()
+        date = datetime.now()
         folder_raw_data = tmpdir.mkdir("raw_data")
         folder_raw_data.join(
             f"velib_availability_real_time_{date:%Y%m%d-%H%M}01.json"
@@ -220,3 +221,41 @@ class TestSQLStationScopeTransformer(TestDatabaseInteraction):
         station_ids = SQLStationScopeTransformer()._get_station_ids()
         # Then
         assert station_ids == [1, 2]
+
+    def test_transform_should_filter_ids(self, caplog: pytest.LogCaptureFixture):
+        # Given
+        data = pd.DataFrame.from_records(
+            [
+                [0, datetime(2023, 12, 10, 12, 0), 5],
+                [1, datetime(2023, 12, 10, 12, 0), 5],
+            ],
+            columns=["station_id", "status_datetime", "num_bikes_available"],
+        ).assign(
+            num_bikes_available_types_mechanical=2,
+            num_bikes_available_types_ebike=3,
+            num_docks_available=5,
+            is_installed=True,
+            is_returning=True,
+            is_renting=True,
+        )
+        with caplog.at_level(logging.WARNING):
+            # When
+            actual = SQLStationScopeTransformer().transform(data)
+        # Then
+        assert len(caplog.messages) == 1
+        assert caplog.records[0].levelname == "WARNING"
+        assert "Data contains station_id not in the database: [0]" in caplog.messages[0]
+        expected = pd.DataFrame.from_records(
+            [
+                [1, datetime(2023, 12, 10, 12, 0), 5],
+            ],
+            columns=["station_id", "status_datetime", "num_bikes_available"],
+        ).assign(
+            num_bikes_available_types_mechanical=2,
+            num_bikes_available_types_ebike=3,
+            num_docks_available=5,
+            is_installed=True,
+            is_returning=True,
+            is_renting=True,
+        )
+        pd.testing.assert_frame_equal(actual.reset_index(drop=True), expected)
