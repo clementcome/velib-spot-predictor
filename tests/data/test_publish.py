@@ -162,6 +162,20 @@ class TestFolderExtractor:
             }
         ])
 
+    def test_find_filepath(self, mocker: MockerFixture, extractor, mock_folder_raw_data):
+        mock_get_one_filepath = mocker.patch('velib_spot_predictor.data.publish.get_one_filepath')
+        mock_get_one_filepath.return_value = Path(f"{mock_folder_raw_data}/velib_availability_real_time_20220101-120001.json")
+        test_date = datetime(2022, 1, 1, 12, 0)
+
+        result = extractor._find_filepath(test_date)
+
+        file_pattern = "velib_availability_real_time_20220101-1200*.json"
+
+        mock_get_one_filepath.assert_called_once_with(Path(mock_folder_raw_data), file_pattern)
+
+        # Vérifiez que le résultat est correct
+        assert result == Path(f"{mock_folder_raw_data}/velib_availability_real_time_20220101-120001.json")
+    
     def test_extract_one_file(self, mocker: MockerFixture, fake_dataframe, extractor: FolderExtractor):
         # Given
         filepath=f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}01.json"
