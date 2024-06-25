@@ -148,6 +148,39 @@ class TestFolderExtractor:
         return FolderExtractor(
             folder_raw_data=mock_folder_raw_data, pattern_raw_data="*.json"
         )
+    
+    @pytest.fixture
+    def fake_dataframe(self):
+        return pd.DataFrame([
+            {
+                "station_id": 1,
+                "num_bikes_available": 2,
+                "num_bikes_available_types": [
+                    {"mechanical": 1},
+                    {"ebike": 1},
+                ],
+            }
+        ])
+
+    def test_extract_one_file(self, mocker: MockerFixture, fake_dataframe, extractor: FolderExtractor):
+        # Given
+        filepath=f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}01.json"
+        mock_read_json = mocker.patch.object(pd, "read_json", return_value=fake_dataframe)
+
+        # When
+        actual_df = extractor._extract_one_file(filepath)
+        
+        # Then
+        expected_df = pd.DataFrame(
+            {
+                "station_id": [1],
+                "num_bikes_available": [2],
+                "num_bikes_available_types_mechanical": [1],
+                "num_bikes_available_types_ebike": [1],
+            }
+        )
+        mock_read_json.assert_called_once_with(filepath)
+        pd.testing.assert_frame_equal(actual_df, expected_df)
 
     def test_extract(self, tmpdir, mocker: MockerFixture):
         date = datetime.now()
