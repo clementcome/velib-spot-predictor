@@ -9,9 +9,11 @@ from pytest_mock import MockerFixture
 from time_machine import travel
 from velib_spot_predictor.data.publish import (
     DataFrameExtractor,
+    FileLoader,
     FolderExtractor,
     JsonToSQLBase,
     LocalStationInformationTransformer,
+    SQLLoader,
     SQLStationScopeTransformer,
 )
 
@@ -138,36 +140,86 @@ class TestDataFrameExtractor:
 
 class TestFolderExtractor:
     @pytest.fixture
-    def mock_folder_raw_data(self, tmp_path: Path):
-        folder_raw_data = tmp_path / "raw_data"
-        folder_raw_data.mkdir()
-        return folder_raw_data
+    def extractor(self, mocker: MockerFixture):
+        path_raw_data = Path("raw_data")
+
+        def mock_is_dir(path):
+            if path == path_raw_data:
+                return True
+            return Path.is_dir(path)
+
+        mocker.patch.object(Path, "is_dir", side_effect=mock_is_dir, autospec=True)
+        return FolderExtractor(folder_raw_data=path_raw_data, pattern_raw_data="*.json")
 
     @pytest.fixture
-    def extractor(self, mock_folder_raw_data: Path):
-        return FolderExtractor(
-            folder_raw_data=mock_folder_raw_data, pattern_raw_data="*.json"
+    def fake_dataframe(self):
+        return pd.DataFrame(
+            [
+                {
+                    "station_id": 1,
+                    "num_bikes_available": 2,
+                    "num_bikes_available_types": [
+                        {"mechanical": 1},
+                        {"ebike": 1},
+                    ],
+                }
+            ]
         )
 
-    def test_extract(self, tmpdir, mocker: MockerFixture):
-        date = datetime.now()
-        folder_raw_data = tmpdir.mkdir("raw_data")
-        folder_raw_data.join(
-            f"velib_availability_real_time_{date:%Y%m%d-%H%M}01.json"
-        ).write("")
-        folder_raw_data.join(
-            f"velib_availability_real_time_{date:%Y%m%d-%H%M}02.json"
-        ).write("")
+    def test_extract_one_file(
+        self, mocker: MockerFixture, fake_dataframe, extractor: FolderExtractor
+    ):
+        # Given
+        filepath = f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}01.json"
+        mock_read_json = mocker.patch.object(
+            pd, "read_json", return_value=fake_dataframe
+        )
+
+        # When
+        actual_df = extractor._extract_one_file(filepath)
+
+        # Then
+        expected_df = pd.DataFrame(
+            {
+                "station_id": [1],
+                "num_bikes_available": [2],
+                "num_bikes_available_types_mechanical": [1],
+                "num_bikes_available_types_ebike": [1],
+            }
+        )
+        mock_read_json.assert_called_once_with(filepath)
+        pd.testing.assert_frame_equal(actual_df, expected_df)
+
+    def test_extract(self, mocker: MockerFixture, extractor: FolderExtractor):
+        mock_glob = mocker.patch.object(
+            Path,
+            "glob",
+            return_value=[
+                Path(
+                    f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}01.json"
+                ),
+                Path(
+                    f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}02.json"
+                ),
+            ],
+        )
+
         mock_extract_one_file = mocker.patch.object(
             FolderExtractor,
             "_extract_one_file",
             return_value=pd.DataFrame(),
         )
-        extractor = FolderExtractor(
-            folder_raw_data=Path(folder_raw_data), pattern_raw_data="*.json"
-        )
+
         extractor.extract()
+
+        mock_glob.assert_called_once()
         assert mock_extract_one_file.call_count == 2
+
+    def test_extract_should_raise(self, mocker: MockerFixture, extractor):
+        mock_glob = mocker.patch.object(Path, "glob")
+
+        with pytest.raises(ValueError, match="No data extracted"):
+            extractor.extract()
 
 
 class TestLocalStationInformationTransformer:
@@ -259,3 +311,37 @@ class TestSQLStationScopeTransformer(TestDatabaseInteraction):
             is_renting=True,
         )
         pd.testing.assert_frame_equal(actual.reset_index(drop=True), expected)
+
+
+class TestFileLoader:
+    def test_load(self, mocker: MockerFixture):
+        mock_to_pickle = mocker.patch.object(pd.DataFrame, "to_pickle")
+        mocker.patch.object(Path, "is_file", return_value=True)
+        fake_output_path = Path("fake_filepath")
+        loader = FileLoader(output_file=fake_output_path)
+
+        loader.load(pd.DataFrame())
+        mock_to_pickle.assert_called_once_with(fake_output_path)
+
+
+class TestSQLLoader(TestDatabaseInteraction):
+    def test_load(self, mocker: MockerFixture):
+        data_to_load = pd.DataFrame.from_records(
+            [
+                [1, datetime(2023, 12, 10, 12, 0), 5],
+            ],
+            columns=["station_id", "datetime", "num_bikes_available"],
+        ).assign(
+            num_bikes_available_types_mechanical=2,
+            num_bikes_available_types_ebike=3,
+            num_docks_available=5,
+            is_installed=True,
+            is_returning=True,
+            is_renting=True,
+        )
+        mock_to_sql = mocker.patch.object(pd.DataFrame, "to_sql")
+        fake_table_name = ""
+        loader = SQLLoader(table_name=fake_table_name)
+        loader.load(data_to_load)
+
+        mock_to_sql.assert_called_once()
