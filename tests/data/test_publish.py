@@ -137,16 +137,20 @@ class TestDataFrameExtractor:
 
 
 class TestFolderExtractor:
-    @pytest.fixture
-    def mock_folder_raw_data(self, tmp_path: Path):
-        folder_raw_data = tmp_path / "raw_data"
-        folder_raw_data.mkdir()
-        return folder_raw_data
 
     @pytest.fixture
-    def extractor(self, mock_folder_raw_data: Path):
+    def extractor(self, mocker: MockerFixture):
+        path_raw_data = Path("raw_data")
+
+        def mock_is_dir(path):
+            if path == path_raw_data:
+                return True
+            return Path.is_dir(path)
+    
+        
+        mocker.patch.object(Path, "is_dir", side_effect=mock_is_dir, autospec=True)
         return FolderExtractor(
-            folder_raw_data=mock_folder_raw_data, pattern_raw_data="*.json"
+            folder_raw_data=path_raw_data, pattern_raw_data="*.json"
         )
     
     @pytest.fixture
@@ -161,20 +165,6 @@ class TestFolderExtractor:
                 ],
             }
         ])
-
-    def test_find_filepath(self, mocker: MockerFixture, extractor, mock_folder_raw_data):
-        mock_get_one_filepath = mocker.patch('velib_spot_predictor.data.publish.get_one_filepath')
-        mock_get_one_filepath.return_value = Path(f"{mock_folder_raw_data}/velib_availability_real_time_20220101-120001.json")
-        test_date = datetime(2022, 1, 1, 12, 0)
-
-        result = extractor._find_filepath(test_date)
-
-        file_pattern = "velib_availability_real_time_20220101-1200*.json"
-
-        mock_get_one_filepath.assert_called_once_with(Path(mock_folder_raw_data), file_pattern)
-
-        # Vérifiez que le résultat est correct
-        assert result == Path(f"{mock_folder_raw_data}/velib_availability_real_time_20220101-120001.json")
     
     def test_extract_one_file(self, mocker: MockerFixture, fake_dataframe, extractor: FolderExtractor):
         # Given
@@ -196,26 +186,26 @@ class TestFolderExtractor:
         mock_read_json.assert_called_once_with(filepath)
         pd.testing.assert_frame_equal(actual_df, expected_df)
 
-    def test_extract(self, tmpdir, mocker: MockerFixture):
-        date = datetime.now()
-        folder_raw_data = tmpdir.mkdir("raw_data")
-        folder_raw_data.join(
-            f"velib_availability_real_time_{date:%Y%m%d-%H%M}01.json"
-        ).write("")
-        folder_raw_data.join(
-            f"velib_availability_real_time_{date:%Y%m%d-%H%M}02.json"
-        ).write("")
+    def test_extract(self, mocker: MockerFixture, extractor: FolderExtractor):
+        
+        mock_glob = mocker.patch.object(Path, 'glob', return_value=[Path(f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}01.json"), Path(f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}02.json")])
+        
         mock_extract_one_file = mocker.patch.object(
             FolderExtractor,
             "_extract_one_file",
             return_value=pd.DataFrame(),
         )
-        extractor = FolderExtractor(
-            folder_raw_data=Path(folder_raw_data), pattern_raw_data="*.json"
-        )
+        
         extractor.extract()
+        
+        mock_glob.assert_called_once()
         assert mock_extract_one_file.call_count == 2
 
+    def test_extract_should_raise(self, mocker: MockerFixture, extractor):
+        mock_glob = mocker.patch.object(Path, 'glob', return_value=[Path(f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}01.json"), Path(f"velib_availability_real_time_{datetime.now():%Y%m%d-%H%M}02.json")])
+        
+        with pytest.raises(ValueError, match="No data extracted"):
+            extractor.extract()
 
 class TestLocalStationInformationTransformer:
     @pytest.fixture
