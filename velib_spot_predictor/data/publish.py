@@ -32,7 +32,6 @@ from velib_spot_predictor.data.base import (
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Station
 from velib_spot_predictor.data.load_data import load_station_information
-from velib_spot_predictor.utils import get_one_filepath
 
 logger = logging.getLogger(__name__)
 
@@ -160,24 +159,6 @@ class FolderExtractor(BaseModel, IExtractor):
     folder_raw_data: DirectoryPath
     pattern_raw_data: str = "*.json"
     pbar: bool = False
-
-    def _find_filepath(self, date: datetime) -> str:
-        """Find the filename corresponding to the date.
-
-        Parameters
-        ----------
-        date : datetime
-            Date to find the filename for
-
-
-        Returns
-        -------
-        str
-            Filename corresponding to the date
-        """
-        file_pattern = f"velib_availability_real_time_{date:%Y%m%d-%H%M}*.json"
-        filepath = get_one_filepath(self.folder_raw_data, file_pattern)
-        return filepath
 
     def _extract_one_file(self, filepath: Path) -> pd.DataFrame:
         """Extract the data from one file.
