@@ -72,7 +72,10 @@ class IVelibRawSaver(abc.ABC):
         tz = pytz.timezone("Europe/Paris")
         datetime_now = datetime.now().astimezone(tz=tz)
         formatted_datetime = datetime_now.strftime("%Y%m%d-%H%M%S")
-        return f"velib_availability_real_time_{formatted_datetime}.json"
+        return (
+            f"{datetime_now:%Y/%m/%d/%H}/"
+            f"velib_availability_real_time_{formatted_datetime}.json"
+        )
 
     @abc.abstractmethod
     def save(self, data: list) -> None:
