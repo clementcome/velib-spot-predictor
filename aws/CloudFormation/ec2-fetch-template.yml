@@ -1,0 +1,185 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS CloudFormation Template for EC2 Instance with Docker
+
+Parameters:
+  Environment:
+    Description: Environment (Prod, Dev, Acc)
+    Type: String
+    AllowedValues:
+      - Dev
+      - Acc
+      - Prod
+    Default: Dev
+  Version:
+    Type: String
+    Default: latest
+    Description: The version of the Docker image to pull
+
+Mappings:
+  EnvironmentMap:
+    Dev:
+      S3Bucket: "development-velib"
+      SecretName: "dev/database"
+      SecretArn: "arn:aws:secretsmanager:eu-west-3:309622890411:secret:dev/database-GfttHt"
+      DatabaseName: "development"
+    Acc:
+      S3Bucket: "acceptance-velib"
+      SecretName: "acc/database"
+      SecretArn: "arn:aws:secretsmanager:eu-west-3:309622890411:secret:acc/database-Sa6HJL"
+      DatabaseName: "acceptance"
+    Prod:
+      S3Bucket: "production-velib"
+      SecretName: "prod/database"
+      SecretArn: "arn:aws:secretsmanager:eu-west-3:309622890411:secret:prod/database-jbWpTt"
+      DatabaseName: "production"
+
+Resources:
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub
+                    - "arn:aws:s3:::${S3Bucket}"
+                    - S3Bucket:
+                        !FindInMap [EnvironmentMap, !Ref Environment, S3Bucket]
+                  - !Sub
+                    - "arn:aws:s3:::${S3Bucket}/*"
+                    - S3Bucket:
+                        !FindInMap [EnvironmentMap, !Ref Environment, S3Bucket]
+        - PolicyName: SecretsManagerAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub
+                  - "${SecretArn}"
+                  - SecretArn:
+                      !FindInMap [EnvironmentMap, !Ref Environment, SecretArn]
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for fetching data from Velib API
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            # - cfn-hup
+            - setup
+            - setupCronTask
+          update:
+            - pullDockerImage
+        setup:
+          packages:
+            yum:
+              docker: []
+              jq: []
+              cronie: []
+          services:
+            sysvinit:
+              docker:
+                enabled: true
+                ensureRunning: true
+              crond:
+                enabled: true
+                ensureRunning: true
+          commands:
+            01_logSetup:
+              command: !Sub |
+                echo "Initial setup executed at $(date)" >> /var/log/setup.log
+            02_addUserToDockerGroup:
+              command: "usermod -a -G docker ec2-user"
+        setupCronTask:
+          commands:
+            00_setup_cfn_init_on_reboot:
+              command: !Sub |
+                echo "@reboot /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Instance --region ${AWS::Region} --configsets update" | crontab > /var/log/cron_setup.log
+            01_setup_velib_cron_task:
+              command: !Sub
+                - |
+                  # Retrieve secrets from AWS Secrets Manager
+                  SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${SecretName} --query SecretString --output text)
+                  DB_USER=$(echo $SECRET_JSON | jq -r .username)
+                  DB_PASSWORD=$(echo $SECRET_JSON | jq -r .password)
+                  DB_HOST=$(echo $SECRET_JSON | jq -r .host)
+
+                  # Create crontab entry to run docker-compose every minute
+                  echo "#!/bin/bash
+                  docker run --rm \\
+                  -e S3_REGION_NAME=${AWS::Region} \\
+                  -e S3_VELIB_RAW_BUCKET=${S3Bucket} \\
+                  -e DB_HOST=$DB_HOST -e DB_NAME=${DatabaseName} \\
+                  -e DB_USER=$DB_USER -e DB_PASSWORD=$DB_PASSWORD \\
+                  clementcome/velib:${Version} fetch_data --database --s3" > /home/ec2-user/velib_command.sh
+                  chmod u+x /home/ec2-user/velib_command.sh
+                  echo "* * * * * /home/ec2-user/velib_command.sh &> /home/ec2-user/velib_cron.log" > velib_cron
+                  (crontab -l ; cat velib_cron) | crontab -
+                - {
+                    Version: !Ref Version,
+                    S3Bucket:
+                      !FindInMap [EnvironmentMap, !Ref Environment, S3Bucket],
+                    SecretName:
+                      !FindInMap [EnvironmentMap, !Ref Environment, SecretName],
+                    DatabaseName:
+                      !FindInMap [
+                        EnvironmentMap,
+                        !Ref Environment,
+                        DatabaseName,
+                      ],
+                  }
+        pullDockerImage:
+          commands:
+            01_pull_docker:
+              command: !Sub |
+                echo "Docker image clementcome/velib:${Version} pull executed at $(date)" >> /var/log/docker_pull.log
+                docker pull clementcome/velib:${Version}
+    Properties:
+      ImageId: ami-052984d1804039ba8
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Instance --region ${AWS::Region} --configsets default,update
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
+
+Outputs:
+  InstanceId:
+    Description: The instance ID
+    Value: !Ref Instance
