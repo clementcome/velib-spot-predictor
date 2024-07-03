@@ -52,7 +52,7 @@ class TestIVelibRawSaver:
     @travel("2021-01-01 12:00:00")
     def test_get_filename(self):
         file_pattern = re.compile(
-            r"velib_availability_real_time_[0-9]{8}-[0-9]{6}\.json"
+            r"\d{4}/\d{2}/\d{2}/\d{2}/velib_availability_real_time_[0-9]{8}-[0-9]{6}\.json"
         )
         assert re.match(file_pattern, IVelibRawSaver._get_filename())
 

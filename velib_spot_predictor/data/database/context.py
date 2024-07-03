@@ -1,14 +1,16 @@
 """Context for database session."""
+
 from types import TracebackType
 from typing import Optional, Type
 
+from pydantic import BaseModel, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from velib_spot_predictor.environment import DBConfig
 
 
-class DatabaseSession:
+class DatabaseSession(BaseModel):
     """Class to manage database session.
 
     Examples
@@ -18,11 +20,26 @@ class DatabaseSession:
     ...     # Do something with the session
     """
 
-    def __init__(self):
-        """Initialize the database session."""
-        db_url = DBConfig().db_url
-        self.engine = create_engine(db_url)
-        self.session = sessionmaker(bind=self.engine)
+    db_config: DBConfig = Field(default_factory=DBConfig)
+
+    @property
+    def db_url(self) -> str:
+        """Database URL."""
+        return self.db_config.db_url
+
+    @property
+    def engine(self):
+        """Database engine."""
+        if not hasattr(self, "_engine"):
+            self._engine = create_engine(self.db_url)
+        return self._engine
+
+    @property
+    def session(self):
+        """Database session."""
+        if not hasattr(self, "_session"):
+            self._session = sessionmaker(bind=self.engine)
+        return self._session
 
     def __enter__(self):
         """Enter the context of a database session.
