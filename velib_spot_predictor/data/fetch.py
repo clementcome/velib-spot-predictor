@@ -10,7 +10,7 @@ import click
 import pytz
 import requests
 
-from velib_spot_predictor.data.constants import API_URL
+from velib_spot_predictor.data.constants import API_URL, TIMEZONE
 from velib_spot_predictor.data.publish import SQLDataFrameETL
 from velib_spot_predictor.environment import S3AWSConfig
 
@@ -43,8 +43,7 @@ class VelibRawExtractor:
         HTTPError
             If the response status code is not 200
         """
-        tz = pytz.timezone("Europe/Paris")
-        datetime_now = datetime.now().astimezone(tz=tz)
+        datetime_now = datetime.now().astimezone(tz=TIMEZONE)
         self.logger.info(f"Fetching data at {datetime_now}")
 
         response = requests.get(self.url, timeout=30)

@@ -29,6 +29,7 @@ from velib_spot_predictor.data.base import (
     ILoader,
     ITransformer,
 )
+from velib_spot_predictor.data.constants import TIMEZONE
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Station
 from velib_spot_predictor.data.load_data import load_station_information
@@ -104,7 +105,7 @@ class JsonToSQLBase:
         match = re.search(r"(\d{8}-\d{6})", filename)
         if match:
             datetime_str = match.group(0)
-            return pd.Timestamp(datetime_str).round("min")
+            return pd.Timestamp(datetime_str, tz=TIMEZONE).round("min")
         else:
             raise ValueError("Invalid filename format")
 
@@ -117,14 +118,14 @@ class DataFrameExtractor(BaseModel, IExtractor):
 
     data: list
     timestamp: datetime = Field(
-        default_factory=lambda: pd.Timestamp.now().floor("min")
+        default_factory=lambda: pd.Timestamp.now(tz=TIMEZONE).floor("min")
     )
 
     @field_validator("timestamp", mode="after")
     @classmethod
     def check_rounding(cls, timestamp: datetime):
         """Check that the timestamp is rounded to the minute."""
-        return pd.Timestamp(timestamp).floor("min")
+        return pd.Timestamp(timestamp, tz=TIMEZONE).floor("min")
 
     model_config = {
         "arbitrary_types_allowed": True,

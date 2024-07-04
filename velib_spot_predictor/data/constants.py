@@ -1,8 +1,12 @@
 """Constants used in the data module."""
+
 from enum import Enum, unique
+
+import pytz
 
 API_URL = "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json"
 DATETIME_FORMAT = "%Y%m%d-%H%M%S"
+TIMEZONE = pytz.timezone("Europe/Paris")
 
 
 @unique
