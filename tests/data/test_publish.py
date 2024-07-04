@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import pytz
 from pytest_mock import MockerFixture
 from time_machine import travel
 from velib_spot_predictor.data.constants import TIMEZONE
@@ -73,7 +74,7 @@ class TestJsonToSQLBase:
         # When
         actual = JsonToSQLBase.extract_datetime_from_filename(filename)
         # Then
-        expected = datetime(2021, 1, 1, 12, 0).astimezone(TIMEZONE)
+        expected = TIMEZONE.localize(datetime(2021, 1, 1, 12, 0))
         assert actual == expected
         expected_pandas = pd.Timestamp("2021-01-01 12:00", tz=TIMEZONE)
         assert actual == expected_pandas
@@ -116,11 +117,11 @@ class TestDataFrameExtractor:
         extractor = DataFrameExtractor(data=fake_raw_data, timestamp=timestamp)
         # Then
         assert extractor.data == fake_raw_data
-        assert extractor.timestamp == datetime(2021, 1, 1, 12, 1, 0).astimezone(
-            TIMEZONE
+        assert extractor.timestamp == TIMEZONE.localize(
+            datetime(2021, 1, 1, 12, 1, 0)
         )  # Rounded
 
-    @travel("2021-01-01 12:00:10")
+    @travel(TIMEZONE.localize(datetime(2021, 1, 1, 12, 0, 10)))
     def test_extract(self, fake_raw_data):
         # Given
         extractor = DataFrameExtractor(data=fake_raw_data)
