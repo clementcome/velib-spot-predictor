@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 from pytest_mock import MockerFixture
 from time_machine import travel
+from velib_spot_predictor.data.constants import TIMEZONE
 from velib_spot_predictor.data.publish import (
     DataFrameExtractor,
     FileLoader,
@@ -72,9 +73,9 @@ class TestJsonToSQLBase:
         # When
         actual = JsonToSQLBase.extract_datetime_from_filename(filename)
         # Then
-        expected = datetime(2021, 1, 1, 12, 0)
+        expected = datetime(2021, 1, 1, 12, 0).astimezone(TIMEZONE)
         assert actual == expected
-        expected_pandas = pd.Timestamp("2021-01-01 12:00")
+        expected_pandas = pd.Timestamp("2021-01-01 12:00", tz=TIMEZONE)
         assert actual == expected_pandas
 
     def test_extract_datetime_from_filename_should_raise(self):
@@ -105,7 +106,9 @@ class TestDataFrameExtractor:
         extractor = DataFrameExtractor(data=fake_raw_data)
         # Then
         assert extractor.data == fake_raw_data
-        assert extractor.timestamp == datetime(2021, 1, 1, 12, 0, 0)
+        assert extractor.timestamp == datetime(2021, 1, 1, 12, 0, 0).astimezone(
+            TIMEZONE
+        )
 
     def test_init_with_timestamp(self, fake_raw_data):
         timestamp = datetime(2021, 1, 1, 12, 1, 10)
@@ -113,7 +116,9 @@ class TestDataFrameExtractor:
         extractor = DataFrameExtractor(data=fake_raw_data, timestamp=timestamp)
         # Then
         assert extractor.data == fake_raw_data
-        assert extractor.timestamp == datetime(2021, 1, 1, 12, 1, 0)  # Rounded
+        assert extractor.timestamp == datetime(2021, 1, 1, 12, 1, 0).astimezone(
+            TIMEZONE
+        )  # Rounded
 
     @travel("2021-01-01 12:00:10")
     def test_extract(self, fake_raw_data):
@@ -128,12 +133,12 @@ class TestDataFrameExtractor:
                 "num_bikes_available": [2],
                 "num_bikes_available_types_mechanical": [1],
                 "num_bikes_available_types_ebike": [1],
-                "datetime": [pd.Timestamp("2021-01-01 12:00")],
+                "datetime": [pd.Timestamp("2021-01-01 12:00", tz=TIMEZONE)],
             }
         )
         pd.testing.assert_frame_equal(
             df,
-            expected_df.astype({"datetime": "datetime64[us]"}),
+            expected_df.astype({"datetime": "datetime64[us, Europe/Paris]"}),
             check_datetimelike_compat=True,
         )
 
