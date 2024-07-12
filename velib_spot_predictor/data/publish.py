@@ -196,6 +196,7 @@ class FolderExtractor(BaseModel, IExtractor):
             list(self.folder_raw_data.glob(self.pattern_raw_data)),
             disable=not self.pbar,
         ):
+            logger.info(f"Extracting file {filepath}")
             try:
                 data_dict[filepath.name] = self._extract_one_file(
                     filepath

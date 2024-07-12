@@ -101,6 +101,7 @@ class LocalVelibRawSaver(IVelibRawSaver):
     def save(self, data: list) -> None:
         """Save data to a local file."""
         self.logger.info(f"Saving fetched data to file {self.filepath}")
+        self.filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(self.filepath, "w") as file:
             json.dump(data, file)
 

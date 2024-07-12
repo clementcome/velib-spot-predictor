@@ -9,26 +9,52 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
+MOCK_DB_URL = "sqlite:///test.db"
+
 
 class DBConfig(BaseSettings):
     """Configuration for the database."""
 
-    HOST: str
-    PORT: int = 3306
-    USER: str
-    PASSWORD: str
-    NAME: str
+    HOST: Optional[str] = None
+    PORT: Optional[int] = 3306
+    USER: Optional[str] = None
+    PASSWORD: Optional[str] = None
+    NAME: Optional[str] = None
+    DEBUG: Optional[bool] = False
 
     model_config = SettingsConfigDict(env_file="db.env", env_prefix="DB_")
+
+    @model_validator(mode="after")
+    def check_credentials(self) -> None:
+        """Check if the credentials are valid."""
+        if self.DEBUG:
+            return
+        if not all(
+            [
+                self.HOST,
+                self.PORT,
+                self.USER,
+                self.PASSWORD,
+                self.NAME,
+            ]
+        ):
+            raise ValueError(
+                f"{self.HOST=}, {self.PORT=}, {self.USER=}, {self.PASSWORD=}, "
+                f"{self.NAME=} must all be provided"
+            )
 
     @property
     def db_url(self) -> str:
         """Return the database URL."""
+        if self.DEBUG:
+            return MOCK_DB_URL
         return f"mysql+mysqlconnector://{self.USER}:{self.PASSWORD}@{self.HOST}/{self.NAME}"
 
     @property
     def db_url_secured(self) -> str:
         """Return the database URL with password hidden."""
+        if self.DEBUG:
+            return MOCK_DB_URL
         return (
             f"mysql+mysqlconnector://{self.USER}:***@{self.HOST}/{self.NAME}"
         )

@@ -1,4 +1,5 @@
 """Backend for predicting velib availability."""
+
 from typing import Dict
 
 from fastapi import FastAPI
