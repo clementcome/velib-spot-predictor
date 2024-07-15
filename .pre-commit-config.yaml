@@ -10,20 +10,14 @@ repos:
     rev: 0.6.1
     hooks:
       - id: nbstripout
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-    - id: isort
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
-    hooks:
-    - id: black
-      language_version: python3.9
-      # args: [--config=pyproject.toml]
-    - id: black-jupyter
-      language_version: python3.9
-      # args: [--config=pyproject.toml]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.286
+    # Ruff version.
+    rev: v0.5.2
     hooks:
+      # Run the linter.
       - id: ruff
+        types_or: [ python, pyi, jupyter ]
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format
+        types_or: [ python, pyi, jupyter ]
