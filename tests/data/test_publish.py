@@ -222,7 +222,7 @@ class TestFolderExtractor:
         assert mock_extract_one_file.call_count == 2
 
     def test_extract_should_raise(self, mocker: MockerFixture, extractor):
-        mock_glob = mocker.patch.object(Path, "glob")
+        mocker.patch.object(Path, "glob")
 
         with pytest.raises(ValueError, match="No data extracted"):
             extractor.extract()
