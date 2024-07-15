@@ -188,7 +188,7 @@ colorbar = dl.Colorbar(
     max=vmax,
     unit="usage %",
 )
-style_arrondissements = dict(fillOpacity=0.3)
+style_arrondissements = dict(fillOpacity=0.2)
 style_occupation = dict(weight=1, dashArray="10", color="red", fillOpacity=0.3)
 
 app = dash.Dash(
@@ -238,7 +238,7 @@ occupation_layer = dl.GeoJSON(
         style=style_occupation,
         colorProp=color_prop,
     ),
-    hoverStyle={"fillOpacity": 0.5},
+    hoverStyle={"fillOpacity": 0.4},
     children=[dl.Popup(html.Div(id="occupation-popup"))],
 )
 
@@ -427,10 +427,10 @@ def update_graph(feature, datetime_str):
     if feature is None:
         return None
     station_id = feature["properties"]["station_id"]
-    if datetime_str is None:
-        end_datetime = datetime.now()
-    else:
+    if datetime_str:
         end_datetime = datetime.fromisoformat(datetime_str)
+    else:
+        end_datetime = datetime.now()
     start_datetime = end_datetime - timedelta(hours=2)
     occupation_data = requests.get(
         f"{VELIB_API_URL}/data/status/station/{station_id}"
