@@ -114,10 +114,10 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 addopts = [
     "-v",
-    # "--cov=velib_spot_predictor",
-    # "--cov-report=xml",
-    # "--cov-report=term-missing",
-    # "--cov-fail-under=70",
+    "--cov=velib_spot_predictor",
+    "--cov-report=xml",
+    "--cov-report=term-missing",
+    "--cov-fail-under=70",
 ]
 env = [
     "S3_AWS_ACCESS_KEY_ID=fake_access_key_id",

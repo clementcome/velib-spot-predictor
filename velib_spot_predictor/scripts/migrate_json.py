@@ -4,6 +4,7 @@ import json
 import re
 import sys
 from datetime import datetime
+from typing import cast
 
 import click
 from loguru import logger
@@ -56,12 +57,15 @@ def migrate_json(input_bucket: str, file_pattern: str):
     for page in page_iterator:
         for obj in page["Contents"]:
             try:
-                timestamp_str = date_pattern.match(obj["Key"]).group(1)
+                pattern_match = date_pattern.match(obj["Key"])
                 # Check if the timestamp was extracted
-                if not timestamp_str:
+                if not pattern_match:
                     raise ValueError(
                         f"Could not extract timestamp from {obj['Key']}"
                     )
+                timestamp_str = cast(
+                    re.Match[str], date_pattern.match(obj["Key"])
+                ).group(1)
                 timestamp_value = datetime.strptime(
                     timestamp_str, "%Y%m%d-%H%M%S"
                 )
