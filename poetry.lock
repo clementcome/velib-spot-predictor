@@ -3735,6 +3735,23 @@ tomli = {version = ">=2.0.1", markers = "python_version < \"3.11\""}
 test = ["covdefaults (>=2.3)", "coverage (>=7.3.2)", "pytest-mock (>=3.12)"]
 
 [[package]]
+name = "pytest-loguru"
+version = "0.4.0"
+description = "Pytest Loguru"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "pytest_loguru-0.4.0-py3-none-any.whl", hash = "sha256:3cc7b9c6b22cb158209ccbabf0d678dacd3f3c7497d6f46f1c338c13bee1ac77"},
+    {file = "pytest_loguru-0.4.0.tar.gz", hash = "sha256:0d9e4e72ae9bfd92f774c666e7353766af11b0b78edd59c290e89be116050f03"},
+]
+
+[package.dependencies]
+loguru = "*"
+
+[package.extras]
+test = ["pytest", "pytest-cov"]
+
+[[package]]
 name = "pytest-mock"
 version = "3.14.0"
 description = "Thin-wrapper around the mock package for easier use with pytest"
@@ -5104,4 +5121,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.9.7 || >3.9.7,<3.13"
-content-hash = "fadb282ad39d938791352ae054c7a4383079ac98795faffaee7b3b94a4bd2d36"
+content-hash = "bfca9dbac35afaa51c3fde5a649a09f5088a910680baa580b200ea4d3bf48626"

@@ -6,6 +6,7 @@ from pathlib import Path
 import boto3
 import pytest
 import requests
+import velib_spot_predictor.environment
 from click.testing import CliRunner
 from pytest_mock import MockerFixture
 from time_machine import travel
@@ -73,11 +74,13 @@ class TestLocalSaver:
 
 class TestS3Saver:
     def test_save(self, mocker: MockerFixture):
-        mock_s3_client = mocker.MagicMock()
-        mocker.patch("boto3.client", return_value=mock_s3_client)
+        mock_s3_session = mocker.MagicMock()
+        mocker.patch.object(
+            velib_spot_predictor.environment, "Session", return_value=mock_s3_session
+        )
         saver = S3VelibRawSaver()
         saver.save([])
-        mock_s3_client.put_object.assert_called_once()
+        mock_s3_session.client.return_value.put_object.assert_called_once()
 
 
 class TestFetchData:
