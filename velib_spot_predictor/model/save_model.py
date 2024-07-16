@@ -1,4 +1,7 @@
 """Methods used for saving model."""
+
+from pathlib import Path
+
 import click
 from joblib import dump
 
@@ -19,6 +22,6 @@ def save_model(data_path: str, model_path: str) -> None:
     model_path : str
         Path to the joblib file where the model will be saved
     """
-    data = load_prepared(data_path)
+    data = load_prepared(Path(data_path))
     model = train(data)
     dump(model, model_path)

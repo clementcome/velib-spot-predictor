@@ -9,13 +9,13 @@ import requests
 from click.testing import CliRunner
 from pytest_mock import MockerFixture
 from time_machine import travel
+from velib_spot_predictor.data.cli import fetch_data
 from velib_spot_predictor.data.constants import API_URL
 from velib_spot_predictor.data.fetch import (
     IVelibRawSaver,
     LocalVelibRawSaver,
     S3VelibRawSaver,
     VelibRawExtractor,
-    fetch_data,
 )
 
 
