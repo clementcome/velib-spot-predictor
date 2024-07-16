@@ -11,6 +11,7 @@ from velib_spot_predictor.api.database.models import (
     StatusDatetimeOutput,
     StatusStationOutput,
 )
+from velib_spot_predictor.data.constants import ValueColumns
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Station as StationTable
 from velib_spot_predictor.data.database.models import Status as StatusTable
@@ -31,7 +32,7 @@ def get_station_status(
     station_id: int,
     end_datetime: Annotated[datetime, Query(default_factory=datetime.now)],
     start_datetime: Optional[datetime] = None,
-    value: str = "num_bikes_available",
+    value: ValueColumns = ValueColumns.AVAILABLE_BIKES,
 ) -> StatusStationOutput:
     """Get the status of a station between two datetimes."""
     if start_datetime is None:
@@ -56,17 +57,23 @@ def get_station_status(
     return output
 
 
+def get_latest_datetime() -> datetime:
+    """Get the latest datetime in the database."""
+    with DatabaseSession() as session:
+        latest_datetime = session.query(
+            func.max(StatusTable.status_datetime)
+        ).scalar()
+    return latest_datetime
+
+
 @router.get("/status/datetime")
 def get_datetime_status(
-    status_datetime: Optional[datetime] = None,
-    value: str = "num_bikes_available",
+    status_datetime: Annotated[
+        datetime, Query(default_factory=get_latest_datetime)
+    ],
+    value: ValueColumns = ValueColumns.AVAILABLE_BIKES,
 ) -> StatusDatetimeOutput:
     """Get every station status at a given datetime."""
-    if status_datetime is None:
-        with DatabaseSession() as session:
-            status_datetime = session.query(
-                func.max(StatusTable.status_datetime)
-            ).scalar()
     with DatabaseSession() as session:
         datetime_status = session.execute(
             select(StatusTable.station_id, getattr(StatusTable, value)).where(

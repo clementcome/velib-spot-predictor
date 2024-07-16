@@ -1,5 +1,8 @@
 """Models used in the API."""
-from pydantic import BaseModel, confloat, conint
+
+from typing import Annotated
+
+from pydantic import BaseModel, Field
 
 
 class PredictionInput(BaseModel):
@@ -16,8 +19,8 @@ class PredictionInput(BaseModel):
     """
 
     id_station: int
-    hour: conint(ge=0, lt=24)
-    minute: conint(ge=0, lt=60)
+    hour: Annotated[int, Field(..., ge=0, lt=24)]
+    minute: Annotated[int, Field(..., ge=0, lt=60)]
 
 
 class PredictionOutput(BaseModel):
@@ -32,4 +35,4 @@ class PredictionOutput(BaseModel):
     """
 
     id_station: int
-    prediction: confloat(ge=0)
+    prediction: Annotated[float, Field(ge=0)]

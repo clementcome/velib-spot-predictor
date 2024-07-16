@@ -86,7 +86,7 @@ class ICatchmentAreaBuilder(abc.ABC):
             if -1 not in region:
                 polygons.append(Polygon(vor.vertices[region]))
             else:
-                polygons.append(None)
+                polygons.append(Polygon())
         voronoi_series = gpd.GeoSeries(polygons, index=index)
         return voronoi_series
 

@@ -1,9 +1,10 @@
 """Environment variables configuration for the project."""
 
-from typing import Optional
+from typing import Literal, Optional, Union
 
-import boto3
+from boto3.session import Session
 from loguru import logger
+from mypy_boto3_s3 import Client as S3Client
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
@@ -25,10 +26,10 @@ class DBConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file="db.env", env_prefix="DB_")
 
     @model_validator(mode="after")
-    def check_credentials(self) -> None:
+    def check_credentials(self) -> "DBConfig":
         """Check if the credentials are valid."""
         if self.DEBUG:
-            return
+            return self
         if not all(
             [
                 self.HOST,
@@ -42,6 +43,7 @@ class DBConfig(BaseSettings):
                 f"{self.HOST=}, {self.PORT=}, {self.USER=}, {self.PASSWORD=}, "
                 f"{self.NAME=} must all be provided"
             )
+        return self
 
     @property
     def db_url(self) -> str:
@@ -120,13 +122,13 @@ class AWSConfig(BaseSettings):
         >>> # will be None, REGION_NAME will be "eu-west-3"
     """
 
-    AWS_ACCESS_KEY_ID: Optional[str] = None
-    AWS_SECRET_ACCESS_KEY: Optional[str] = None
-    AWS_SESSION_TOKEN: Optional[str] = None
-    REGION_NAME: Optional[str] = "eu-west-3"
+    AWS_ACCESS_KEY_ID: Union[None, str] = None
+    AWS_SECRET_ACCESS_KEY: Union[None, str] = None
+    AWS_SESSION_TOKEN: Union[None, str] = None
+    REGION_NAME: Union[None, str] = "eu-west-3"
 
     @model_validator(mode="after")
-    def check_credentials(self) -> None:
+    def check_credentials(self) -> "AWSConfig":
         """Check if the credentials are valid."""
         if self.AWS_ACCESS_KEY_ID is not None:
             if self.AWS_SECRET_ACCESS_KEY is None:
@@ -138,22 +140,17 @@ class AWSConfig(BaseSettings):
                 logger.info("Using permanent credentials")
             else:
                 logger.info("Using temporary credentials")
+        return self
 
-    def get_client(self, service: str) -> boto3.client:
+    def get_client(self, service: Literal["s3"]) -> S3Client:
         """Return a boto3 client."""
-        client_kwargs = {
-            "region_name": self.REGION_NAME,
-        }
-        if self.AWS_ACCESS_KEY_ID is not None:
-            client_kwargs.update(
-                {
-                    "aws_access_key_id": self.AWS_ACCESS_KEY_ID,
-                    "aws_secret_access_key": self.AWS_SECRET_ACCESS_KEY,
-                }
-            )
-            if self.AWS_SESSION_TOKEN is not None:
-                client_kwargs["aws_session_token"] = self.AWS_SESSION_TOKEN
-        return boto3.client(service, **client_kwargs)
+        session = Session(
+            aws_access_key_id=self.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
+            aws_session_token=self.AWS_SESSION_TOKEN,
+            region_name=self.REGION_NAME,
+        )
+        return session.client(service_name=service)
 
 
 class S3AWSConfig(AWSConfig):
@@ -168,7 +165,7 @@ class S3AWSConfig(AWSConfig):
 
     model_config = SettingsConfigDict(env_file="aws.env", env_prefix="S3_")
 
-    def get_client(self, service: str = "s3") -> boto3.client:
+    def get_client(self, service: Literal["s3"] = "s3") -> S3Client:
         """Return a boto3 client for S3."""
         if service != "s3":
             raise ValueError("This method is only for S3 service")

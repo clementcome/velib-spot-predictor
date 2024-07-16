@@ -2,19 +2,63 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import click
 import pandas as pd
 from sqlalchemy import func, select
 from tqdm import tqdm
 
+from velib_spot_predictor.data.constants import API_URL
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Status
+from velib_spot_predictor.data.fetch import (
+    LocalVelibRawSaver,
+    S3VelibRawSaver,
+    VelibRawExtractor,
+)
 from velib_spot_predictor.data.load_data import (
     load_station_information,
     save_station_information_to_sql,
 )
-from velib_spot_predictor.data.publish import FolderToSQLETL
+from velib_spot_predictor.data.publish import FolderToSQLETL, SQLDataFrameETL
+
+
+@click.command()
+@click.option(
+    "-s",
+    "--save-folder",
+    type=click.Path(exists=True, file_okay=False),
+    help="Local folder where the data will be saved",
+)
+@click.option("--s3", is_flag=True, help="Save the data in an S3 bucket")
+@click.option("--database", is_flag=True, help="Load the data in the database")
+def fetch_data(
+    save_folder: Optional[str] = None, s3: bool = False, database: bool = False
+) -> None:
+    """Fetch data from the Velib API and save it."""
+    data = VelibRawExtractor(API_URL).extract()
+    click.echo("Data fetched successfully")
+    if not any([save_folder, s3, database]):
+        click.echo("No save option selected, data will not be saved")
+    if save_folder:
+        try:
+            LocalVelibRawSaver(save_folder).save(data)
+            click.echo("Data saved locally")
+        except Exception as e:
+            click.echo(f"Failed to save data locally: {str(e)}")
+    if s3:
+        try:
+            S3VelibRawSaver().save(data)
+            click.echo("Data saved in S3")
+        except Exception as e:
+            click.echo(f"Failed to save data in S3: {str(e)}")
+    if database:
+        try:
+            SQLDataFrameETL(data=data).run()
+            click.echo("Data loaded in the database")
+        except Exception as e:
+            click.echo(f"Failed to load data in the database: {str(e)}")
 
 
 @click.command()
@@ -25,14 +69,16 @@ def fill_station_information_table(station_information_path: str):
     STATION_INFORMATION_PATH is the path to the file containing the station
     information.
     """
-    station_information = load_station_information(station_information_path)
+    station_information = load_station_information(
+        Path(station_information_path)
+    )
     db_session = DatabaseSession()
     with db_session:
         save_station_information_to_sql(station_information, db_session.engine)
 
 
 def prompt_for_correct_date(
-    date_name: str, date_default: datetime = None, max_tries: int = 3
+    date_name: str, date_default: Optional[datetime] = None, max_tries: int = 3
 ) -> datetime:
     """Prompt the user for a date."""
     date_format = "%Y%m%d%H%M"

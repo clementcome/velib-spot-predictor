@@ -2,7 +2,6 @@
 
 import abc
 import json
-import logging
 import re
 from datetime import datetime
 from functools import cached_property
@@ -12,6 +11,7 @@ from typing import List, Union
 
 import click
 import pandas as pd
+from loguru import logger
 from pydantic import (
     BaseModel,
     DirectoryPath,
@@ -33,8 +33,6 @@ from velib_spot_predictor.data.constants import TIMEZONE
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Station
 from velib_spot_predictor.data.load_data import load_station_information
-
-logger = logging.getLogger(__name__)
 
 ## Utils
 
@@ -426,7 +424,7 @@ class BaseFolderETL(BaseModel, IETL):
 
     @property
     @abc.abstractmethod
-    def transformer(self) -> LocalStationInformationTransformer:
+    def transformer(self) -> ITransformer:
         """Transformer."""
 
     @property

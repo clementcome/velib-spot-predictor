@@ -89,7 +89,7 @@ def _get_catchment_area(station_information: pd.DataFrame) -> gpd.GeoSeries:
     )
 
 
-def _get_geo_information():
+def _get_geo_information() -> gpd.GeoDataFrame:
     url = f"{VELIB_API_URL}/data/stations"
     data = requests.get(url, timeout=30).json()
     station_information = pd.DataFrame.from_records(data)
@@ -103,7 +103,9 @@ def _get_geo_information():
     return geo_station_information
 
 
-def _get_occupation(status_datetime: Optional[datetime] = None):
+def _get_occupation(
+    status_datetime: Optional[datetime] = None,
+) -> pd.DataFrame:
     url = f"{VELIB_API_URL}/data/status/datetime?"
     if status_datetime:
         url += f"status_datetime={status_datetime}"
@@ -254,38 +256,49 @@ app.layout = html.Div(
         dbc.Container(
             [
                 dbc.Row([html.H1("Occupation des stations Vélib"), html.Hr()]),
-                dbc.Row(
-                    [
-                        dbc.Col(
-                            dbc.Input(id="datetime", type="datetime-local"),
-                        ),
-                        dbc.Col(
-                            dbc.Button("Reset map", id="reset"),
-                            style={"text-align": "right"},
-                        ),
-                    ]
+                dbc.Col(
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                dbc.Input(
+                                    id="datetime", type="datetime-local"
+                                ),
+                            ),
+                            dbc.Col(
+                                dbc.Button("Reset map", id="reset"),
+                                style={"text-align": "right"},
+                            ),
+                        ]
+                    ),
+                    width=8,
                 ),
                 html.Div(style={"height": "10px"}),
                 dbc.Row(
-                    dl.Map(
-                        [
-                            dl.TileLayer(),
-                            arrondissements_layer,
-                            occupation_layer,
-                            colorbar,
-                        ],
-                        center=[48.8566, 2.3522],
-                        zoom=12,
-                        style={"width": "100%", "height": "500px"},
-                        id="map",
-                    ),
-                ),
-                dbc.Row(
-                    dcc.Loading(
-                        html.Div(id="graph", style={"height": "50vh"})
-                    ),
+                    [
+                        dbc.Col(
+                            dl.Map(
+                                [
+                                    dl.TileLayer(),
+                                    arrondissements_layer,
+                                    occupation_layer,
+                                    colorbar,
+                                ],
+                                center=[48.8566, 2.3522],
+                                zoom=12,
+                                style={"width": "100%", "height": "500px"},
+                                id="map",
+                            ),
+                            width=8,
+                        ),
+                        dbc.Col(
+                            dcc.Loading(
+                                html.Div(id="graph", style={"height": "50vh"})
+                            ),
+                        ),
+                    ],
                 ),
             ],
+            fluid=True,
         ),
     ]
 )
@@ -295,7 +308,8 @@ app.layout = html.Div(
     Output("catchment_area", "data"),
     Input("station_information", "data"),
 )
-def update_catchment_area(station_information_data):
+def update_catchment_area(station_information_data: str) -> str:
+    """Update the catchment area with the station information."""
     station_information = gpd.GeoDataFrame.from_features(
         json.loads(station_information_data)
     )
@@ -311,9 +325,12 @@ def update_catchment_area(station_information_data):
     Output("occupation_data", "data"),
     Input("datetime", "value"),
 )
-def update_occupation_data(datetime_str):
+def update_occupation_data(datetime_str: Optional[str]) -> str:
     """Update the occupation data with the given time."""
-    return _get_occupation(datetime_str).to_json(orient="table")
+    datetime_value = (
+        datetime.fromisoformat(datetime_str) if datetime_str else None
+    )
+    return _get_occupation(datetime_value).to_json(orient="table")
 
 
 @app.callback(
@@ -322,8 +339,9 @@ def update_occupation_data(datetime_str):
     State("station_information", "data"),
 )
 def update_arrondissements_data(
-    occupation_data_json, station_information_json
-):
+    occupation_data_json: str, station_information_json: str
+) -> str:
+    """Update the arrondissements with the occupation of the stations."""
     station_information = gpd.GeoDataFrame.from_features(
         json.loads(station_information_json)
     )
@@ -343,7 +361,7 @@ def update_arrondissements_data(
     Output("polygon_arrondissement", "data"),
     Input("arrondissements", "clickData"),
 )
-def update_click_arrondissements(feature):
+def update_click_arrondissements(feature: dict) -> Optional[list]:
     """Update the polygon_arrondissement with the clicked arrondissement."""
     if feature is None:
         return None
@@ -359,12 +377,12 @@ def update_click_arrondissements(feature):
     State("catchment_area", "data"),
 )
 def update_occupation_layer(
-    reset_n_clicks,
-    occupation_df_time,
-    polygon_arrondissement,
-    station_information_data,
-    catchment_area_data,
-):
+    reset_n_clicks: int,
+    occupation_df_time_json: str,
+    polygon_arrondissement: list,
+    station_information_data: str,
+    catchment_area_data: str,
+) -> Optional[list]:
     """Update the occupation layer with the clicked arrondissement."""
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -377,7 +395,9 @@ def update_occupation_layer(
         return None
     else:
         polygon = Polygon(polygon_arrondissement)
-        occupation_df_time = pd.read_json(occupation_df_time, orient="table")
+        occupation_df_time = pd.read_json(
+            occupation_df_time_json, orient="table"
+        )
         station_information = gpd.GeoDataFrame.from_features(
             json.loads(station_information_data)
         )
@@ -401,7 +421,7 @@ def update_occupation_layer(
     Output("occupation-popup", "children"),
     Input("occupation", "clickData"),
 )
-def update_popup(feature):
+def update_popup(feature: dict) -> Optional[list]:
     """Update the popup with the clicked station."""
     if feature is None:
         return None
@@ -422,7 +442,10 @@ def update_popup(feature):
     Input("occupation", "clickData"),
     Input("datetime", "value"),
 )
-def update_graph(feature, datetime_str):
+def update_graph(
+    feature: dict,
+    datetime_str: Optional[str],
+) -> Optional[dcc.Graph]:
     """Update the graph with the clicked station."""
     if feature is None:
         return None
@@ -434,7 +457,8 @@ def update_graph(feature, datetime_str):
     start_datetime = end_datetime - timedelta(hours=2)
     occupation_data = requests.get(
         f"{VELIB_API_URL}/data/status/station/{station_id}"
-        f"?end_datetime={end_datetime}&start_datetime={start_datetime}"
+        f"?end_datetime={end_datetime}&start_datetime={start_datetime}",
+        timeout=30,
     ).json()
     station_name = feature["properties"]["name"]
     occupation_df_station = pd.DataFrame(

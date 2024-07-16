@@ -1,30 +1,30 @@
 """Base classes for the ETL process."""
 
-import abc
+from abc import ABC, abstractmethod
 
 import pandas as pd
 
 
-class IExtractor(abc.ABC):
+class IExtractor(ABC):
     """Extract interface for ETLs, extracts the data from source."""
 
-    @abc.abstractmethod
+    @abstractmethod
     def extract(self) -> pd.DataFrame:
         """Extract data from the source."""
 
 
-class ITransformer(abc.ABC):
+class ITransformer(ABC):
     """Transform interface for ETLs, transforms the data."""
 
-    @abc.abstractmethod
+    @abstractmethod
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Transform the data."""
 
 
-class ILoader(abc.ABC):
+class ILoader(ABC):
     """Load interface for ETLs, loads the data."""
 
-    @abc.abstractmethod
+    @abstractmethod
     def load(self, df: pd.DataFrame) -> None:
         """Load the data."""
 
@@ -40,23 +40,20 @@ class DummyTransformer(ITransformer):
 class IETL:
     """ETL interface, runs the ETL process."""
 
-    def __init__(
-        self, extractor: IExtractor, transformer: ITransformer, loader: ILoader
-    ):
-        """Initialize the ETL process.
+    @property
+    @abstractmethod
+    def extractor(self) -> IExtractor:
+        """Extractor."""
 
-        Parameters
-        ----------
-        extractor : IExtractor
-            Extract instance
-        transformer : ITransformer
-            Transform instance
-        loader : ILoader
-            Load instance
-        """
-        self.extractor = extractor
-        self.transformer = transformer
-        self.loader = loader
+    @property
+    @abstractmethod
+    def transformer(self) -> ITransformer:
+        """Transformer."""
+
+    @property
+    @abstractmethod
+    def loader(self) -> ILoader:
+        """Loader."""
 
     def run(self) -> None:
         """Run the ETL process."""
