@@ -200,3 +200,5 @@ models
 .python-version
 # Test scripts
 /test_*
+test.db
+aws/CloudFormation/ec2-fetch-template-test.yml

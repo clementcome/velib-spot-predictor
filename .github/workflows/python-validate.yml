@@ -42,3 +42,5 @@ jobs:
         poetry install --with=lint
     - name: Lint with ruff
       run: ruff check velib_spot_predictor
+    - name: Type check with mypy
+      run: mypy velib_spot_predictor

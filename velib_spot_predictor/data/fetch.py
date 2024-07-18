@@ -2,16 +2,16 @@
 
 import abc
 import json
-import logging
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-import click
 import pytz
 import requests
+from loguru import logger
 
-from velib_spot_predictor.data.constants import API_URL, TIMEZONE
-from velib_spot_predictor.data.publish import SQLDataFrameETL
+from velib_spot_predictor.data.constants import TIMEZONE
 from velib_spot_predictor.environment import S3AWSConfig
 
 
@@ -27,7 +27,6 @@ class VelibRawExtractor:
             URL of the Velib API
         """
         self.url = url
-        self.logger = logging.getLogger(__class__.__name__)
 
     def extract(self) -> list:
         """Extract data from the Velib API.
@@ -44,7 +43,7 @@ class VelibRawExtractor:
             If the response status code is not 200
         """
         datetime_now = datetime.now().astimezone(tz=TIMEZONE)
-        self.logger.info(f"Fetching data at {datetime_now}")
+        logger.info(f"Fetching data at {datetime_now}")
 
         response = requests.get(self.url, timeout=30)
         if response.status_code == requests.codes.OK:
@@ -56,23 +55,44 @@ class VelibRawExtractor:
             )
 
 
+@dataclass
+class S3VelibExtractor:
+    """Data extractor from an S3 bucket."""
+
+    filepath: str
+    bucket: Optional[str] = None
+
+    def extract(self) -> list:
+        """Extract data from an S3 bucket.
+
+        Returns
+        -------
+        list
+            List of information collected from the Velib API related to the
+            availability of spots in Velib stations
+        """
+        s3_aws_config = S3AWSConfig()
+        s3 = s3_aws_config.get_client()
+        bucket = self.bucket or s3_aws_config.VELIB_RAW_BUCKET
+        response = s3.get_object(Bucket=bucket, Key=self.filepath)
+        return json.loads(response["Body"].read().decode("utf-8"))
+
+
 class IVelibRawSaver(abc.ABC):
     """Interface for Velib raw data saver."""
 
-    def __init__(self) -> None:
+    def __init__(self, timestamp: Optional[datetime] = None) -> None:
         """Initialize the Velib raw data saver."""
-        self.filename = self._get_filename()
-
-        self.logger = logging.getLogger(__class__.__name__)
+        self.filename = self._get_filename(timestamp)
 
     @staticmethod
-    def _get_filename() -> str:
+    def _get_filename(datetime_value: Optional[datetime] = None) -> str:
         """Get the filename for the file where the data will be saved."""
         tz = pytz.timezone("Europe/Paris")
-        datetime_now = datetime.now().astimezone(tz=tz)
-        formatted_datetime = datetime_now.strftime("%Y%m%d-%H%M%S")
+        datetime_value = datetime_value or datetime.now().astimezone(tz=tz)
+        formatted_datetime = datetime_value.strftime("%Y%m%d-%H%M%S")
         return (
-            f"{datetime_now:%Y/%m/%d/%H}/"
+            f"{datetime_value:%Y/%m/%d/%H}/"
             f"velib_availability_real_time_{formatted_datetime}.json"
         )
 
@@ -94,13 +114,14 @@ class LocalVelibRawSaver(IVelibRawSaver):
 
     def __init__(self, save_folder: str) -> None:
         """Initialize the Velib raw data saver to a local file."""
-        super().__init__()
+        super().__init__(None)
         self.save_folder = Path(save_folder)
         self.filepath = self.save_folder / self.filename
 
     def save(self, data: list) -> None:
         """Save data to a local file."""
-        self.logger.info(f"Saving fetched data to file {self.filepath}")
+        logger.info(f"Saving fetched data to file {self.filepath}")
+        self.filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(self.filepath, "w") as file:
             json.dump(data, file)
 
@@ -108,9 +129,9 @@ class LocalVelibRawSaver(IVelibRawSaver):
 class S3VelibRawSaver(IVelibRawSaver):
     """Velib raw data saver to S3."""
 
-    def __init__(self) -> None:
+    def __init__(self, timestamp: Optional[datetime] = None) -> None:
         """Initialize the Velib raw data saver to S3."""
-        super().__init__()
+        super().__init__(timestamp)
 
     def save(self, data: list) -> None:
         """Save the data as a JSON file in an S3 bucket.
@@ -128,41 +149,4 @@ class S3VelibRawSaver(IVelibRawSaver):
             Bucket=s3_aws_config.VELIB_RAW_BUCKET,
             Key=self.filename,
         )
-        self.logger.info(f"Data saved in {self.filename}")
-
-
-@click.command()
-@click.option(
-    "-s",
-    "--save-folder",
-    type=click.Path(exists=True, file_okay=False),
-    help="Local folder where the data will be saved",
-)
-@click.option("--s3", is_flag=True, help="Save the data in an S3 bucket")
-@click.option("--database", is_flag=True, help="Load the data in the database")
-def fetch_data(
-    save_folder: str = None, s3: bool = False, database: bool = False
-) -> None:
-    """Fetch data from the Velib API and save it."""
-    data = VelibRawExtractor(API_URL).extract()
-    click.echo("Data fetched successfully")
-    if not any([save_folder, s3, database]):
-        click.echo("No save option selected, data will not be saved")
-    if save_folder:
-        try:
-            LocalVelibRawSaver(save_folder).save(data)
-            click.echo("Data saved locally")
-        except Exception as e:
-            click.echo(f"Failed to save data locally: {str(e)}")
-    if s3:
-        try:
-            S3VelibRawSaver().save(data)
-            click.echo("Data saved in S3")
-        except Exception as e:
-            click.echo(f"Failed to save data in S3: {str(e)}")
-    if database:
-        try:
-            SQLDataFrameETL(data=data).run()
-            click.echo("Data loaded in the database")
-        except Exception as e:
-            click.echo(f"Failed to load data in the database: {str(e)}")
+        logger.info(f"Data saved in {self.filename}")

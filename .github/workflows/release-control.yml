@@ -47,13 +47,13 @@ jobs:
       id: get-version
       run: |
         git fetch --prune --unshallow
-        VERSION=$(poetry version -s)
-        echo "Head branch version: $VERSION"
-        echo "head_branch_version=$VERSION" >> $GITHUB_OUTPUT
+        NEXT_PATCH_VERSION=$(poetry version patch -s --dry-run)
+        echo "Head branch version: $NEXT_PATCH_VERSION"
+        echo "head_branch_version=$NEXT_PATCH_VERSION" >> $GITHUB_OUTPUT
         git checkout ${{ github.base_ref }}
-        VERSION=$(poetry version -s)
-        echo "Base branch version: $VERSION"
-        echo "base_branch_version=$VERSION" >> $GITHUB_OUTPUT
+        NEXT_PATCH_VERSION=$(poetry version patch -s --dry-run)
+        echo "Base branch version: $NEXT_PATCH_VERSION"
+        echo "base_branch_version=$NEXT_PATCH_VERSION" >> $GITHUB_OUTPUT
         # git checkout ${{ github.head_ref }}
     - name: Compare versions
       id: compare-versions
@@ -63,8 +63,8 @@ jobs:
         echo "Base branch version: $BASE_BRANCH_VERSION"
         echo "Head branch version: $HEAD_BRANCH_VERSION"
         if [[ "$BASE_BRANCH_VERSION" == "$HEAD_BRANCH_VERSION" ]]; then
-          echo "Base branch version and head branch version are the same."
+          echo "Base branch version and head branch version are the same modulo pre-release."
         else
-          echo "Base branch version and head branch version are different."
+          echo "Base branch version and head branch version differ by more than a pre-release."
           exit 1
         fi

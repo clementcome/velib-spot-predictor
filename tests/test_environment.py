@@ -1,8 +1,9 @@
 import os
 
 import pytest
+import velib_spot_predictor.environment
 from pydantic import ValidationError
-
+from pytest_mock import MockerFixture
 from velib_spot_predictor.environment import AWSConfig, S3AWSConfig
 
 
@@ -33,9 +34,7 @@ class TestAWSConfig:
         with pytest.raises(ValidationError):
             AWSConfig(**data, _env_file=empty_env_file)
 
-    def test_get_client_should_use_provided_credentials(
-        self, mocker, empty_env_file
-    ):
+    def test_get_client_should_use_provided_credentials(self, mocker, empty_env_file):
         # Given
         data = {
             "AWS_ACCESS_KEY_ID": "fake_access_key",
@@ -43,21 +42,27 @@ class TestAWSConfig:
             "REGION_NAME": "eu-west-3",
         }
         config = AWSConfig(**data, _env_file=empty_env_file)
-        mock_boto_client = mocker.patch(
-            "boto3.client", return_value="mock_client"
+
+        mock_session = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_session.client.return_value = mock_client
+
+        mock_boto_session = mocker.patch.object(
+            velib_spot_predictor.environment, "Session", return_value=mock_session
         )
 
         # When
         client = config.get_client("s3")
 
         # Then
-        mock_boto_client.assert_called_with(
-            "s3",
+        mock_boto_session.assert_called_with(
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
+            aws_session_token=None,
             region_name="eu-west-3",
         )
-        assert client == "mock_client"
+        mock_session.client.assert_called_with(service_name="s3")
+        assert client == mock_client
 
     def test_get_client_should_use_default_credentials_if_no_access_key(
         self, mocker, empty_env_file
@@ -65,16 +70,26 @@ class TestAWSConfig:
         # Given
         data = {"REGION_NAME": "eu-west-3"}
         config = AWSConfig(**data, _env_file=empty_env_file)
-        mock_boto_client = mocker.patch(
-            "boto3.client", return_value="mock_client"
+        mock_session = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_session.client.return_value = mock_client
+
+        mock_boto_session = mocker.patch.object(
+            velib_spot_predictor.environment, "Session", return_value=mock_session
         )
 
         # When
         client = config.get_client("s3")
 
         # Then
-        mock_boto_client.assert_called_with("s3", region_name="eu-west-3")
-        assert client == "mock_client"
+        mock_boto_session.assert_called_with(
+            aws_access_key_id=None,
+            aws_secret_access_key=None,
+            aws_session_token=None,
+            region_name="eu-west-3",
+        )
+        mock_session.client.assert_called_with(service_name="s3")
+        assert client == mock_client
 
 
 class TestS3AWSConfig:
@@ -106,19 +121,23 @@ class TestS3AWSConfig:
             "VELIB_RAW_BUCKET": "fake-bucket",
         }
         config = S3AWSConfig(**data)
-        mock_boto_client = mocker.patch(
-            "boto3.client", return_value="mock_client"
+        mock_session = mocker.MagicMock()
+        mock_client = mocker.MagicMock()
+        mock_session.client.return_value = mock_client
+
+        mock_boto_session = mocker.patch.object(
+            velib_spot_predictor.environment, "Session", return_value=mock_session
         )
 
         # When
         client = config.get_client()
 
         # Then
-        mock_boto_client.assert_called_with(
-            "s3",
+        mock_boto_session.assert_called_with(
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
             aws_session_token="fake_token",
             region_name="eu-west-3",
         )
-        assert client == "mock_client"
+        mock_session.client.assert_called_with(service_name="s3")
+        assert client == mock_client

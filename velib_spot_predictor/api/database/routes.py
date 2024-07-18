@@ -1,17 +1,17 @@
 """Database routes in the API."""
-from datetime import timedelta
-from typing import List
 
-from fastapi import APIRouter
-from sqlalchemy import select
+from datetime import datetime, timedelta
+from typing import Annotated, List, Optional
+
+from fastapi import APIRouter, Query
+from sqlalchemy import func, select
 
 from velib_spot_predictor.api.database.models import (
     Station,
-    StatusDatetimeInput,
     StatusDatetimeOutput,
-    StatusStationInput,
     StatusStationOutput,
 )
+from velib_spot_predictor.data.constants import ValueColumns
 from velib_spot_predictor.data.database.context import DatabaseSession
 from velib_spot_predictor.data.database.models import Station as StationTable
 from velib_spot_predictor.data.database.models import Status as StatusTable
@@ -27,16 +27,16 @@ def get_stations() -> List[Station]:
     return stations
 
 
-@router.post("/status/station")
+@router.get("/status/station/{station_id}")
 def get_station_status(
-    status_station_input: StatusStationInput,
+    station_id: int,
+    end_datetime: Annotated[datetime, Query(default_factory=datetime.now)],
+    start_datetime: Optional[datetime] = None,
+    value: ValueColumns = ValueColumns.AVAILABLE_BIKES,
 ) -> StatusStationOutput:
     """Get the status of a station between two datetimes."""
-    station_id = status_station_input.station_id
-    start_datetime = status_station_input.start_datetime
-    end_datetime = status_station_input.end_datetime
-    value = status_station_input.value
-
+    if start_datetime is None:
+        start_datetime = end_datetime - timedelta(minutes=15)
     with DatabaseSession() as session:
         station_status = session.execute(
             select(StatusTable.status_datetime, getattr(StatusTable, value))
@@ -57,14 +57,23 @@ def get_station_status(
     return output
 
 
-@router.post("/status/datetime")
+def get_latest_datetime() -> datetime:
+    """Get the latest datetime in the database."""
+    with DatabaseSession() as session:
+        latest_datetime = session.query(
+            func.max(StatusTable.status_datetime)
+        ).scalar()
+    return latest_datetime
+
+
+@router.get("/status/datetime")
 def get_datetime_status(
-    status_datetime_input: StatusDatetimeInput,
+    status_datetime: Annotated[
+        datetime, Query(default_factory=get_latest_datetime)
+    ],
+    value: ValueColumns = ValueColumns.AVAILABLE_BIKES,
 ) -> StatusDatetimeOutput:
     """Get every station status at a given datetime."""
-    status_datetime = status_datetime_input.status_datetime
-    value = status_datetime_input.value
-
     with DatabaseSession() as session:
         datetime_status = session.execute(
             select(StatusTable.station_id, getattr(StatusTable, value)).where(

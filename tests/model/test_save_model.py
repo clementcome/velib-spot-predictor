@@ -1,7 +1,8 @@
+from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
 from pytest_mock import MockerFixture
-
 from velib_spot_predictor.model.save_model import save_model
 
 
@@ -30,7 +31,7 @@ def test_save_model(mocker: MockerFixture):
     )
     # Assert
     # Assert load_prepared has been called
-    mock_load_prepared.assert_called_once_with("data-path")
+    mock_load_prepared.assert_called_once_with(Path("data-path"))
     # Assert train has been called
     mock_train.assert_called_once_with("data")
     # Assert dump has been called
