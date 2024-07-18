@@ -1,6 +1,6 @@
 """Environment variables configuration for the project."""
 
-from typing import Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from boto3.session import Session
 from loguru import logger
@@ -11,6 +11,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 MOCK_DB_URL = "sqlite:///test.db"
+
+AWS_LITERALS = Literal["s3", "secretsmanager"]
 
 
 class DBConfig(BaseSettings):
@@ -142,15 +144,19 @@ class AWSConfig(BaseSettings):
                 logger.info("Using temporary credentials")
         return self
 
-    def get_client(self, service: Literal["s3"]) -> S3Client:
-        """Return a boto3 client."""
-        session = Session(
+    @property
+    def session(self) -> Session:
+        """Return a boto3 session."""
+        return Session(
             aws_access_key_id=self.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
             aws_session_token=self.AWS_SESSION_TOKEN,
             region_name=self.REGION_NAME,
         )
-        return session.client(service_name=service)
+
+    def get_client(self, service: AWS_LITERALS) -> Any:
+        """Return a boto3 client."""
+        return self.session.client(service_name=service)
 
 
 class S3AWSConfig(AWSConfig):
@@ -165,7 +171,7 @@ class S3AWSConfig(AWSConfig):
 
     model_config = SettingsConfigDict(env_file="aws.env", env_prefix="S3_")
 
-    def get_client(self, service: Literal["s3"] = "s3") -> S3Client:
+    def get_client(self, service: AWS_LITERALS = "s3") -> S3Client:
         """Return a boto3 client for S3."""
         if service != "s3":
             raise ValueError("This method is only for S3 service")
