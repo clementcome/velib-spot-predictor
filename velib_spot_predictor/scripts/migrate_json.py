@@ -93,7 +93,4 @@ def migrate_json(input_bucket: str, file_pattern: str):
             finally:
                 pbar.update(1)
     pbar.close()
-
-
-if __name__ == "__main__":
-    migrate_json()
+    logger.info("Migration complete")

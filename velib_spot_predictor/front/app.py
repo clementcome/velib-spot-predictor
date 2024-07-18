@@ -1,6 +1,7 @@
 """Dash application for the front-end."""
 
 import json
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
@@ -20,9 +21,7 @@ from velib_spot_predictor.data.geo import (
     CatchmentAreaBuilderGeometry,
 )
 
-# from velib_spot_predictor.environment import Config
-
-VELIB_API_URL = "http://localhost:8000"
+VELIB_API_URL = os.environ.get("VELIB_API_URL", "http://localhost:8000")
 
 
 communes = gpd.read_file("data/external/communes-ile-de-france.geojson")
@@ -270,7 +269,8 @@ app.layout = html.Div(
                             ),
                         ]
                     ),
-                    width=8,
+                    md=8,
+                    xs=12,
                 ),
                 html.Div(style={"height": "10px"}),
                 dbc.Row(
@@ -288,12 +288,15 @@ app.layout = html.Div(
                                 style={"width": "100%", "height": "500px"},
                                 id="map",
                             ),
-                            width=8,
+                            md=8,
+                            xs=12,
                         ),
                         dbc.Col(
                             dcc.Loading(
                                 html.Div(id="graph", style={"height": "50vh"})
                             ),
+                            md=4,
+                            xs=12,
                         ),
                     ],
                 ),
